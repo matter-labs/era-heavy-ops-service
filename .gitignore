@@ -1,0 +1,7 @@
+/target
+Cargo.lock
+.vscode
+api-testing/src/data/
+prover-service/data
+.idea
+.github

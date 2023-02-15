@@ -1,0 +1,20 @@
+[package]
+name = "testing"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+api = { path = "../api", optional = true, default_features = false}
+franklin-crypto = {git = "https://git@github.com/matter-labs/franklin-crypto", branch = "dev"}
+rescue-poseidon = {git = "https://git@github.com/matter-labs/rescue-poseidon", branch = "dev", package = "rescue_poseidon"}
+rand = "0.4"
+serde_json = "1.0"
+bincode = "1.3.2"
+
+[features]
+default = ["gpu"]
+legacy = ["api/legacy"]
+gpu = ["api/gpu"]
+gpu_no_alloc = ["api/gpu_no_alloc"]

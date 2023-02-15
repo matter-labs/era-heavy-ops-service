@@ -1,0 +1,20 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gpu-prover = {path = "../gpu-prover", optional = true}
+bellman = {package = "bellman_ce", git = "https://github.com/matter-labs/bellman", branch = "dev", optional = true}
+# bellman = { package = "bellman_ce", path = "../../bellman", optional = true }
+cfg-if = "1.*"
+num_cpus = "*"
+serde = {version = "1", features = ["derive"]}
+
+[features]
+default = ["gpu"]
+gpu = ["gpu-prover/allocator", "bellman/allocator"]
+gpu_no_alloc =  ["gpu-prover/no_allocator", "bellman"]
+legacy = ["bellman"]
