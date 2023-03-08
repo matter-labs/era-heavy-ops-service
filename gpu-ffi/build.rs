@@ -13,6 +13,7 @@ fn main() {
         //   - if you want to build on a macos or only for rust analyzer
         //      just `export BELLMAN_CUDA_DIR=$PWD/bellman-cuda`
         // so we will benefit from env variable for now
+        todo!("set BELLMAN_CUDA_DIR=$PWD")
     };
 
     generate_bindings(&bellman_cuda_path);
