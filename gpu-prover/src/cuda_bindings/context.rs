@@ -332,7 +332,10 @@ impl Drop for GpuContext {
         }
 
         let mut devices_in_use = DEVICES_IN_USE.lock().unwrap();
-        assert!(devices_in_use[self.device_id].is_some(), "Device usage should be marked");
+        assert!(
+            devices_in_use[self.device_id].is_some(),
+            "Device usage should be marked"
+        );
         devices_in_use[self.device_id].take();
     }
 }

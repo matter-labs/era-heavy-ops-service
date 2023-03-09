@@ -122,6 +122,27 @@ impl<F: PrimeField, MC: ManagerConfigs> DeviceMemoryManager<F, MC> {
         Ok(())
     }
 
+    // pub fn allocate_dummy_static_memory(&mut self) -> GpuResult<()> {
+    //     for device_id in 0..MC::NUM_GPUS {
+    //         let info = device_info(device_id as i32)?;
+
+    //         const LOG_SLACK: u32 = 25;
+    //         let size = (((info.free >> LOG_SLACK) - 1) << LOG_SLACK) >> 5;
+
+    //         self.dummy_buf.push(DeviceBuf::<F>::alloc_static(
+    //             &self.ctx[device_id],
+    //             size as usize,
+    //         )?);
+    //     }
+    //     Ok(())
+    // }
+
+    // pub fn deallocate_dummy_static_memory(&mut self) -> GpuResult<()> {
+    //     self.dummy_buf.clear();
+
+    //     Ok(())
+    // }
+
     pub fn allocate_slots(&mut self) -> GpuResult<()> {
         assert_eq!(self.slots.len(), 0, "slots are already allocated");
 

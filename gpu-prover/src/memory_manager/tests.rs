@@ -185,7 +185,7 @@ fn transform_bases(bases: &[CompactG1Affine]) -> Vec<G1Affine> {
 
 type ComptactBn256 = bellman::compact_bn256::Bn256;
 fn test_manager_msm() {
-    println!("msm");    
+    println!("msm");
     let worker = Worker::new();
     let degree = TestConfigs::FULL_SLOT_SIZE;
     if degree > 1 << 16 {

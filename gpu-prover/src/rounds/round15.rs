@@ -1,11 +1,6 @@
 use super::*;
 
-pub fn round15<
-    S: SynthesisMode,
-    C: Circuit<Bn256>,
-    T: Transcript<Fr>,
-    MC: ManagerConfigs,
->(
+pub fn round15<S: SynthesisMode, C: Circuit<Bn256>, T: Transcript<Fr>, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -15,7 +10,6 @@ pub fn round15<
     setup: &mut AsyncSetup,
     msm_handles_round1: Vec<MSMHandle>,
 ) -> Result<(), ProvingError> {
-
     for (i, commitment) in msm_handles_round1.into_iter().enumerate() {
         let s_commitment = commitment.get_result::<MC>(manager)?;
         // println!("GPU COMMITMENT {:?}", s_commitment);
@@ -46,7 +40,7 @@ pub fn compute_f_values_t_monomial<MC: ManagerConfigs>(
 ) -> Result<(), ProvingError> {
     manager.rename_slot(PolyId::Col(0), PolyId::T, PolyForm::Values);
     manager.copy_from_device_to_free_device(PolyId::A, PolyId::F, PolyForm::Values)?;
-    
+
     let mut tmp = eta;
     manager.add_assign_scaled(PolyId::T, PolyId::Col(1), PolyForm::Values, tmp)?;
     manager.add_assign_scaled(PolyId::F, PolyId::B, PolyForm::Values, tmp)?;
@@ -72,22 +66,15 @@ pub fn compute_s_monomial_t_values<MC: ManagerConfigs>(
 }
 
 pub fn free_useless_lookup_slots<MC: ManagerConfigs>(
-    manager: &mut DeviceMemoryManager<Fr, MC>
+    manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> Result<(), ProvingError> {
-    let poly_ids = [
-        PolyId::QTableType,
-        PolyId::QLookupSelector,
-    ];
+    let poly_ids = [PolyId::QTableType, PolyId::QLookupSelector];
 
     for id in poly_ids.iter() {
         manager.free_slot(*id, PolyForm::Values);
     }
 
-    let poly_ids = [
-        PolyId::Col(1),
-        PolyId::Col(2),
-        PolyId::TableType,
-    ];
+    let poly_ids = [PolyId::Col(1), PolyId::Col(2), PolyId::TableType];
 
     for id in poly_ids.iter() {
         manager.free_slot(*id, PolyForm::Values);

@@ -79,7 +79,7 @@ impl<T> DeviceBuf<T> {
         let byte_len = std::mem::size_of::<T>() * len;
         let mut ptr = std::ptr::null_mut();
 
-       unsafe{
+        unsafe {
             let result = bc_malloc_from_pool_async(
                 addr_of_mut!(ptr),
                 byte_len as size_t,
@@ -89,7 +89,7 @@ impl<T> DeviceBuf<T> {
             if result != 0 {
                 return Err(GpuError::AsyncPoolMallocErr(result));
             }
-       }
+        }
 
         Ok(Self {
             ptr: ptr as *mut T,
@@ -138,8 +138,6 @@ impl<T> DeviceBuf<T> {
         self.is_freed = true;
         res_chunks
     }
-
-
 
     pub fn async_copy_to_host(
         &mut self,
@@ -194,13 +192,13 @@ impl<T> DeviceBuf<T> {
 
         Ok(())
     }
-        
+
     pub unsafe fn async_copy_from_pointer_and_len(
         &mut self,
         ctx: &mut GpuContext,
         other: *const T,
         this_range: Range<usize>,
-        other_len: usize
+        other_len: usize,
     ) -> GpuResult<()> {
         assert_eq!(this_range.len(), other_len);
         assert!(other_len > 0);
@@ -247,7 +245,7 @@ impl<T> DeviceBuf<T> {
         stream.wait(&self.read_event)?;
         stream.wait(&self.write_event)?;
 
-        unsafe{
+        unsafe {
             let result = bc_free_async(self.ptr as *mut c_void, stream.inner);
             if result != 0 {
                 return Err(GpuError::AsyncMemFreeErr(result));

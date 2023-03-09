@@ -1,6 +1,6 @@
 [workspace]
 members = [	
-	"testing",
+	"api-testing",
 	"api",
 	"prover-service",
 	"gpu-ffi",

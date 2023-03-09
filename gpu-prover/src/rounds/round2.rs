@@ -1,11 +1,6 @@
 use super::*;
 
-pub fn round2<
-    S: SynthesisMode,
-    C: Circuit<Bn256>,
-    T: Transcript<Fr>,
-    MC: ManagerConfigs,
->(
+pub fn round2<S: SynthesisMode, C: Circuit<Bn256>, T: Transcript<Fr>, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -31,13 +26,7 @@ pub fn round2<
 
     let z_lookup_handle = manager.msm(PolyId::ZLookup)?;
 
-    schedule_ops_for_round_3(
-        manager,
-        assembly,
-        worker,
-        setup,
-        input_values,
-    )?;
+    schedule_ops_for_round_3(manager, assembly, worker, setup, input_values)?;
 
     let z_lookup_commitment = z_lookup_handle.get_result::<MC>(manager)?;
     commit_point_as_xy::<Bn256, T>(transcript, &z_lookup_commitment);
@@ -64,9 +53,13 @@ pub fn get_round_2_lookup_challenges<T: Transcript<Fr>, MC: ManagerConfigs>(
     constants.beta_plus_one_lookup = constants.beta_for_lookup;
     constants.beta_plus_one_lookup.add_assign(&Fr::one());
     constants.gamma_beta_lookup = constants.beta_plus_one_lookup;
-    constants.gamma_beta_lookup.mul_assign(&constants.gamma_for_lookup);
+    constants
+        .gamma_beta_lookup
+        .mul_assign(&constants.gamma_for_lookup);
 
-    constants.expected = constants.gamma_beta_lookup.pow([(MC::FULL_SLOT_SIZE-1) as u64]);
+    constants.expected = constants
+        .gamma_beta_lookup
+        .pow([(MC::FULL_SLOT_SIZE - 1) as u64]);
 }
 
 pub fn compute_z_perm<MC: ManagerConfigs>(
@@ -105,9 +98,14 @@ pub fn compute_z_perm_num<MC: ManagerConfigs>(
 
     manager.add_assign(PolyId::ZPermNum, PolyId::X, PolyForm::Values)?;
 
-    for (i, id) in [PolyId::B, PolyId::C, PolyId::D].iter().enumerate(){
+    for (i, id) in [PolyId::B, PolyId::C, PolyId::D].iter().enumerate() {
         manager.copy_from_device_to_device(*id, PolyId::Tmp, PolyForm::Values)?;
-        manager.add_assign_scaled(PolyId::Tmp, PolyId::X, PolyForm::Values, constants.non_residues[i])?;
+        manager.add_assign_scaled(
+            PolyId::Tmp,
+            PolyId::X,
+            PolyForm::Values,
+            constants.non_residues[i],
+        )?;
         manager.add_constant(PolyId::Tmp, PolyForm::Values, constants.gamma)?;
         manager.mul_assign(PolyId::ZPermNum, PolyId::Tmp, PolyForm::Values)?;
     }
@@ -121,11 +119,21 @@ pub fn compute_z_perm_den<MC: ManagerConfigs>(
 ) -> Result<(), ProvingError> {
     manager.copy_from_device_to_free_device(PolyId::A, PolyId::ZPermDen, PolyForm::Values)?;
     manager.add_constant(PolyId::ZPermDen, PolyForm::Values, constants.gamma)?;
-    manager.add_assign_scaled(PolyId::ZPermDen, PolyId::Sigma(0), PolyForm::Values, constants.beta)?;
+    manager.add_assign_scaled(
+        PolyId::ZPermDen,
+        PolyId::Sigma(0),
+        PolyForm::Values,
+        constants.beta,
+    )?;
 
-    for (i, id) in [PolyId::B, PolyId::C, PolyId::D].iter().enumerate(){
+    for (i, id) in [PolyId::B, PolyId::C, PolyId::D].iter().enumerate() {
         manager.copy_from_device_to_device(*id, PolyId::Tmp2, PolyForm::Values)?;
-        manager.add_assign_scaled(PolyId::Tmp2, PolyId::Sigma(i+1), PolyForm::Values, constants.beta)?;
+        manager.add_assign_scaled(
+            PolyId::Tmp2,
+            PolyId::Sigma(i + 1),
+            PolyForm::Values,
+            constants.beta,
+        )?;
         manager.add_constant(PolyId::Tmp2, PolyForm::Values, constants.gamma)?;
         manager.mul_assign(PolyId::ZPermDen, PolyId::Tmp2, PolyForm::Values)?;
     }
@@ -145,7 +153,11 @@ pub fn compute_z_lookup<MC: ManagerConfigs>(
 
     free_useless_round_2_slots_lookup(manager)?;
 
-    manager.shifted_grand_product_to_new_slot(PolyId::ZLookupNum, PolyId::ZLookup, PolyForm::Values)?;
+    manager.shifted_grand_product_to_new_slot(
+        PolyId::ZLookupNum,
+        PolyId::ZLookup,
+        PolyForm::Values,
+    )?;
 
     manager.free_slot(PolyId::ZLookupNum, PolyForm::Values);
 
@@ -162,9 +174,18 @@ pub fn compute_z_lookup_num<MC: ManagerConfigs>(
     let mut gamma_beta = beta_plus_one;
     gamma_beta.mul_assign(&constants.gamma_for_lookup);
 
-    manager.copy_leftshifted_from_device_to_free_device(PolyId::T, PolyId::ZLookupNum, PolyForm::Values, Fr::one())?;
+    manager.copy_leftshifted_from_device_to_free_device(
+        PolyId::T,
+        PolyId::ZLookupNum,
+        PolyForm::Values,
+        Fr::one(),
+    )?;
 
-    manager.mul_constant(PolyId::ZLookupNum, PolyForm::Values, constants.beta_for_lookup)?;
+    manager.mul_constant(
+        PolyId::ZLookupNum,
+        PolyForm::Values,
+        constants.beta_for_lookup,
+    )?;
     manager.add_assign(PolyId::ZLookupNum, PolyId::T, PolyForm::Values)?;
     manager.add_constant(PolyId::ZLookupNum, PolyForm::Values, gamma_beta)?;
 
@@ -184,9 +205,18 @@ pub fn compute_z_lookup_den<MC: ManagerConfigs>(
     beta_plus_one.add_assign(&Fr::one());
     let mut gamma_beta = beta_plus_one;
     gamma_beta.mul_assign(&constants.gamma_for_lookup);
-    
-    manager.copy_leftshifted_from_device_to_free_device(PolyId::S, PolyId::ZLookupDen, PolyForm::Values, Fr::one())?;
-    manager.mul_constant(PolyId::ZLookupDen, PolyForm::Values, constants.beta_for_lookup)?;
+
+    manager.copy_leftshifted_from_device_to_free_device(
+        PolyId::S,
+        PolyId::ZLookupDen,
+        PolyForm::Values,
+        Fr::one(),
+    )?;
+    manager.mul_constant(
+        PolyId::ZLookupDen,
+        PolyForm::Values,
+        constants.beta_for_lookup,
+    )?;
     manager.add_assign(PolyId::ZLookupDen, PolyId::S, PolyForm::Values)?;
     manager.add_constant(PolyId::ZLookupDen, PolyForm::Values, gamma_beta)?;
 
@@ -194,7 +224,7 @@ pub fn compute_z_lookup_den<MC: ManagerConfigs>(
 }
 
 pub fn free_useless_round_2_slots_perm<MC: ManagerConfigs>(
-    manager: &mut DeviceMemoryManager<Fr, MC>
+    manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> Result<(), ProvingError> {
     let poly_ids = [
         PolyId::A,
@@ -218,7 +248,7 @@ pub fn free_useless_round_2_slots_perm<MC: ManagerConfigs>(
 }
 
 pub fn free_useless_round_2_slots_lookup<MC: ManagerConfigs>(
-    manager: &mut DeviceMemoryManager<Fr, MC>
+    manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> Result<(), ProvingError> {
     let poly_ids = [
         PolyId::Tmp,
@@ -234,10 +264,7 @@ pub fn free_useless_round_2_slots_lookup<MC: ManagerConfigs>(
     Ok(())
 }
 
-pub fn schedule_ops_for_round_3<
-    S: SynthesisMode,
-    MC: ManagerConfigs
->(
+pub fn schedule_ops_for_round_3<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -253,20 +280,12 @@ pub fn schedule_ops_for_round_3<
 
     manager.copy_from_host_pinned_to_device(PolyId::PI, PolyForm::Values)?;
 
-    schedule_copying_gate_coeffs(
-        manager,
-        assembly,
-        worker,
-        setup,
-    )?;
+    schedule_copying_gate_coeffs(manager, assembly, worker, setup)?;
 
     Ok(())
 }
 
-pub fn schedule_copying_gate_coeffs<
-    S: SynthesisMode,
-    MC: ManagerConfigs
->(
+pub fn schedule_copying_gate_coeffs<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -287,21 +306,23 @@ pub fn copying_and_computing_q_const_plus_pi_with_setup<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     setup: &mut AsyncSetup,
 ) -> Result<(), ProvingError> {
-    manager.async_copy_to_device(&mut setup.gate_setup_monomials[6], PolyId::QConst, PolyForm::Monomial, 0..MC::FULL_SLOT_SIZE)?;
+    manager.async_copy_to_device(
+        &mut setup.gate_setup_monomials[6],
+        PolyId::QConst,
+        PolyForm::Monomial,
+        0..MC::FULL_SLOT_SIZE,
+    )?;
 
     manager.multigpu_ifft(PolyId::PI, false)?;
     manager.add_assign(PolyId::PI, PolyId::QConst, PolyForm::Monomial)?;
     manager.free_slot(PolyId::QConst, PolyForm::Monomial);
-    
+
     manager.free_host_slot(PolyId::PI, PolyForm::Values);
 
     Ok(())
 }
 
-pub fn copying_and_computing_ifft_of_gate_coeffs<
-    S: SynthesisMode,
-    MC: ManagerConfigs
->(
+pub fn copying_and_computing_ifft_of_gate_coeffs<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     setup: &mut AsyncSetup,
@@ -316,10 +337,7 @@ pub fn copying_and_computing_ifft_of_gate_coeffs<
     Ok(())
 }
 
-pub fn copying_and_computing_q_const_plus_pi<
-    S: SynthesisMode,
-    MC: ManagerConfigs
->(
+pub fn copying_and_computing_q_const_plus_pi<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -335,10 +353,7 @@ pub fn copying_and_computing_q_const_plus_pi<
     Ok(())
 }
 
-pub fn copying_and_computing_ifft_of_q_d_next<
-    S: SynthesisMode,
-    MC: ManagerConfigs
->(
+pub fn copying_and_computing_ifft_of_q_d_next<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     setup: &mut AsyncSetup,
@@ -349,15 +364,15 @@ pub fn copying_and_computing_ifft_of_q_d_next<
     Ok(())
 }
 
-pub fn copying_setup_poly<
-    S: SynthesisMode,
-    MC: ManagerConfigs
->(
+pub fn copying_setup_poly<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     poly_id: usize,
 ) -> Result<(), ProvingError> {
-    let id = PolyIdentifier::GateSetupPolynomial("main gate of width 4 with D_next and selector optimization", poly_id);
+    let id = PolyIdentifier::GateSetupPolynomial(
+        "main gate of width 4 with D_next and selector optimization",
+        poly_id,
+    );
     let poly_id = GATE_SETUP_LIST[poly_id];
     let num_input_gates = assembly.num_input_gates;
 
@@ -365,14 +380,14 @@ pub fn copying_setup_poly<
     let end = num_input_gates + src.len();
 
     manager.new_empty_slot(poly_id, PolyForm::Values);
-    
+
     if num_input_gates != 0 {
         unsafe {
             manager.async_copy_from_pointer_and_range(
                 poly_id,
                 PolyForm::Values,
                 &assembly.inputs_storage.setup_map.get(&id).unwrap()[0] as *const Fr,
-                0..num_input_gates
+                0..num_input_gates,
             )?;
         }
     }
@@ -382,7 +397,7 @@ pub fn copying_setup_poly<
             poly_id,
             PolyForm::Values,
             &src[0] as *const Fr,
-            num_input_gates..end
+            num_input_gates..end,
         )?;
     }
 
@@ -390,7 +405,7 @@ pub fn copying_setup_poly<
         poly_id,
         PolyForm::Values,
         Fr::zero(),
-        end..MC::FULL_SLOT_SIZE
+        end..MC::FULL_SLOT_SIZE,
     )?;
 
     Ok(())

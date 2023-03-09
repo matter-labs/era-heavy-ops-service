@@ -122,9 +122,9 @@ impl SimpleJobReporter {
 }
 
 impl JobReporter for SimpleJobReporter {
-    fn send_report(&mut self, report: JobResult) {        
+    fn send_report(&mut self, report: JobResult) {
         println!("{:?}", &report);
-        match &report {            
+        match &report {
             JobResult::ProverWaitedIdle(prover_idx, duration) => {
                 println!("prover {} waited {:?}", prover_idx, duration);
                 return;
@@ -139,7 +139,7 @@ impl JobReporter for SimpleJobReporter {
             }
             _ => (),
         }
-        
+
         let job_id = match report.clone() {
             JobResult::Synthesized(job_id, _)
             | JobResult::AssemblyFinalized(job_id, _)
@@ -253,7 +253,7 @@ fn handle_report(report: &JobResult, job_id: usize) {
                 "assembly_decoding_failure.log",
                 &format!("{}\t{}", job_id, circuit_id),
             );
-        },
+        }
         _ => unreachable!(),
     }
 }

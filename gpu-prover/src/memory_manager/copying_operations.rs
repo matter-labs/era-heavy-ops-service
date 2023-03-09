@@ -1,22 +1,27 @@
-use std::convert::TryInto;
-use core::fmt::{Debug, Formatter};
 use super::*;
-use crate::cuda_bindings::{DeviceBuf, Operation, GpuError};
+use crate::cuda_bindings::{DeviceBuf, GpuError, Operation};
+use core::fmt::{Debug, Formatter};
+use std::convert::TryInto;
 
 impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
-
     pub fn async_copy_to_device(
-        &mut self, 
-        poly: &mut AsyncVec<Fr>, 
-        id: PolyId, 
+        &mut self,
+        poly: &mut AsyncVec<Fr>,
+        id: PolyId,
         form: PolyForm,
         range: Range<usize>,
     ) -> GpuResult<()> {
         assert_eq!(range.len(), MC::FULL_SLOT_SIZE, "Wrong polynomial size");
-        assert!(self.get_slot_idx(id, form).is_none(),
-            "There is already such polynomial: {:?} {:?}", id, form);
-        
-        let idx = self.free_slot_idx().expect(&format!("No free slots: {:?} {:?}", id, form));
+        assert!(
+            self.get_slot_idx(id, form).is_none(),
+            "There is already such polynomial: {:?} {:?}",
+            id,
+            form
+        );
+
+        let idx = self
+            .free_slot_idx()
+            .expect(&format!("No free slots: {:?} {:?}", id, form));
 
         for ctx_id in 0..MC::NUM_GPUS {
             let start = range.start + ctx_id * MC::SLOT_SIZE;
@@ -26,7 +31,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut self.slots[idx].0[ctx_id],
                 this_range,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
         self.slots[idx].1 = SlotStatus::Busy(id, form);
@@ -39,18 +44,25 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         worker: &Worker,
         poly: &[Fr],
         id: PolyId,
-        form: PolyForm
+        form: PolyForm,
     ) -> GpuResult<()> {
         assert_eq!(poly.len(), MC::FULL_SLOT_SIZE, "Wrong polynomial size");
-        assert!(self.get_slot_idx(id, form).is_none(),
-            "There is already such polynomial: {:?} {:?}", id, form);
+        assert!(
+            self.get_slot_idx(id, form).is_none(),
+            "There is already such polynomial: {:?} {:?}",
+            id,
+            form
+        );
 
         let host_idx = self.free_host_slot_idx().expect("No free host slots"); //sync??
-
+                                                                               // self.host_slots[host_idx].0
+                                                                               //     .get_values_mut()
+                                                                               //     .unwrap()
+                                                                               //     .copy_from_slice(poly);
         async_copy(
-            worker, 
+            worker,
             self.host_slots[host_idx].0.get_values_mut().unwrap(),
-            poly
+            poly,
         );
 
         let idx = self.free_slot_idx().expect("No free slots");
@@ -63,7 +75,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut self.slots[idx].0[ctx_id],
                 this_range,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -78,14 +90,19 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         worker: &Worker,
         poly: &mut [Fr],
         id: PolyId,
-        form: PolyForm
+        form: PolyForm,
     ) -> GpuResult<()> {
         assert_eq!(poly.len(), MC::FULL_SLOT_SIZE, "Wrong polynomial size");
-        assert!(self.get_host_slot_idx(id, form).is_none(),
-        "There is already such host slot: {:?} {:?}", id, form);
+        assert!(
+            self.get_host_slot_idx(id, form).is_none(),
+            "There is already such host slot: {:?} {:?}",
+            id,
+            form
+        );
 
         let host_idx = self.free_host_slot_idx().expect("No free host slots");
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for ctx_id in 0..MC::NUM_GPUS {
@@ -96,7 +113,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut self.slots[idx].0[ctx_id],
                 this_range,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -104,7 +121,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         self.slots[idx].1 = SlotStatus::Busy(id, form);
 
         async_copy(
-            worker, 
+            worker,
             poly,
             self.host_slots[host_idx].0.get_values_mut().unwrap(),
         );
@@ -112,16 +129,17 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         Ok(())
     }
 
-    pub fn copy_from_device_to_host_pinned(
-        &mut self, 
-        id: PolyId,
-        form: PolyForm,
-    ) -> GpuResult<()> {
-        assert!(self.get_host_slot_idx(id, form).is_none(),
-            "There is already such host slot: {:?} {:?}", id, form);
+    pub fn copy_from_device_to_host_pinned(&mut self, id: PolyId, form: PolyForm) -> GpuResult<()> {
+        assert!(
+            self.get_host_slot_idx(id, form).is_none(),
+            "There is already such host slot: {:?} {:?}",
+            id,
+            form
+        );
 
         let host_idx = self.free_host_slot_idx().expect("No free host slots");
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for ctx_id in 0..MC::NUM_GPUS {
@@ -132,7 +150,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut self.slots[idx].0[ctx_id],
                 this_range,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -142,16 +160,17 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         Ok(())
     }
 
-    pub fn copy_from_host_pinned_to_device(
-        &mut self, 
-        id: PolyId,
-        form: PolyForm,
-    ) -> GpuResult<()> {
-        assert!(self.get_slot_idx(id, form).is_none(),
-            "There is already such polynomial: {:?} {:?}", id, form);
-        
+    pub fn copy_from_host_pinned_to_device(&mut self, id: PolyId, form: PolyForm) -> GpuResult<()> {
+        assert!(
+            self.get_slot_idx(id, form).is_none(),
+            "There is already such polynomial: {:?} {:?}",
+            id,
+            form
+        );
+
         let idx = self.free_slot_idx().expect("No free slots");
-        let host_idx = self.get_host_slot_idx(id, form)
+        let host_idx = self
+            .get_host_slot_idx(id, form)
             .expect(&format!("No such polynomial on host: {:?} {:?}", id, form));
 
         for ctx_id in 0..MC::NUM_GPUS {
@@ -162,7 +181,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut self.slots[idx].0[ctx_id],
                 this_range,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -181,7 +200,8 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     ) -> GpuResult<()> {
         assert_eq!(range.len(), MC::FULL_SLOT_SIZE, "Wrong polynomial size");
 
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for ctx_id in 0..MC::NUM_GPUS {
@@ -192,7 +212,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut self.slots[idx].0[ctx_id],
                 this_range,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
         self.slots[idx].1 = SlotStatus::Busy(id, form);
@@ -201,15 +221,20 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn copy_from_device_to_free_device(
-        &mut self, 
-        id: PolyId, 
-        new_id: PolyId, 
+        &mut self,
+        id: PolyId,
+        new_id: PolyId,
         form: PolyForm,
     ) -> GpuResult<()> {
-        assert!(self.get_slot_idx(new_id, form).is_none(),
-            "There is already such polynomial: {:?} {:?}", new_id, form);
+        assert!(
+            self.get_slot_idx(new_id, form).is_none(),
+            "There is already such polynomial: {:?} {:?}",
+            new_id,
+            form
+        );
 
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
         let new_idx = self.free_slot_idx().expect("No free slots");
 
@@ -220,7 +245,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut slot_2.0[ctx_id],
                 0..MC::SLOT_SIZE,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
         self.slots[new_idx].1 = SlotStatus::Busy(new_id, form);
@@ -230,15 +255,20 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
 
     pub fn copy_shifted_from_device_to_free_device(
         &mut self,
-        id: PolyId, 
-        new_id: PolyId, 
+        id: PolyId,
+        new_id: PolyId,
         form: PolyForm,
         new_first_value: Fr,
     ) -> GpuResult<()> {
-        assert!(self.get_slot_idx(new_id, form).is_none(),
-            "There is already such polynomial: {:?} {:?}", new_id, form);
+        assert!(
+            self.get_slot_idx(new_id, form).is_none(),
+            "There is already such polynomial: {:?} {:?}",
+            new_id,
+            form
+        );
 
-        let idx1 = self.get_slot_idx(id, form)
+        let idx1 = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
         let idx2 = self.free_slot_idx().expect("No free slots");
 
@@ -248,8 +278,8 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             slot_1.0[ctx_id].async_copy_to_device(
                 &mut self.ctx[ctx_id],
                 &mut slot_2.0[ctx_id],
-                0..(MC::SLOT_SIZE-1),
-                1..MC::SLOT_SIZE
+                0..(MC::SLOT_SIZE - 1),
+                1..MC::SLOT_SIZE,
             )?;
 
             if ctx_id == 0 {
@@ -258,14 +288,14 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                     None,
                     Some(new_first_value),
                     0..1,
-                    Operation::SetValue
+                    Operation::SetValue,
                 )?;
             } else {
                 slot_1.0[ctx_id - 1].async_copy_to_device(
                     &mut self.ctx[ctx_id],
                     &mut slot_2.0[ctx_id],
-                    (MC::SLOT_SIZE-1)..MC::SLOT_SIZE,
-                    0..1
+                    (MC::SLOT_SIZE - 1)..MC::SLOT_SIZE,
+                    0..1,
                 )?;
             }
         }
@@ -276,15 +306,20 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
 
     pub fn copy_leftshifted_from_device_to_free_device(
         &mut self,
-        id: PolyId, 
-        new_id: PolyId, 
+        id: PolyId,
+        new_id: PolyId,
         form: PolyForm,
         new_last_value: Fr,
     ) -> GpuResult<()> {
-        assert!(self.get_slot_idx(new_id, form).is_none(),
-            "There is already such polynomial: {:?} {:?}", new_id, form);
+        assert!(
+            self.get_slot_idx(new_id, form).is_none(),
+            "There is already such polynomial: {:?} {:?}",
+            new_id,
+            form
+        );
 
-        let idx1 = self.get_slot_idx(id, form)
+        let idx1 = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
         let idx2 = self.free_slot_idx().expect("No free slots");
 
@@ -295,7 +330,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut slot_2.0[ctx_id],
                 1..MC::SLOT_SIZE,
-                0..(MC::SLOT_SIZE-1)
+                0..(MC::SLOT_SIZE - 1),
             )?;
 
             if ctx_id == MC::NUM_GPUS - 1 {
@@ -303,15 +338,15 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                     &mut self.ctx[ctx_id],
                     None,
                     Some(new_last_value),
-                    (MC::SLOT_SIZE-1)..MC::SLOT_SIZE,
-                    Operation::SetValue
+                    (MC::SLOT_SIZE - 1)..MC::SLOT_SIZE,
+                    Operation::SetValue,
                 )?;
             } else {
                 slot_1.0[ctx_id + 1].async_copy_to_device(
                     &mut self.ctx[ctx_id],
                     &mut slot_2.0[ctx_id],
                     0..1,
-                    (MC::SLOT_SIZE-1)..MC::SLOT_SIZE,
+                    (MC::SLOT_SIZE - 1)..MC::SLOT_SIZE,
                 )?;
             }
         }
@@ -321,14 +356,16 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn copy_from_device_to_device(
-        &mut self, 
-        id1: PolyId, 
-        id2: PolyId, 
+        &mut self,
+        id1: PolyId,
+        id2: PolyId,
         form: PolyForm,
     ) -> GpuResult<()> {
-        let idx1 = self.get_slot_idx(id1, form)
+        let idx1 = self
+            .get_slot_idx(id1, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id1, form));
-        let idx2 = self.get_slot_idx(id2, form)
+        let idx2 = self
+            .get_slot_idx(id2, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id2, form));
 
         for ctx_id in 0..MC::NUM_GPUS {
@@ -338,7 +375,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut slot_2.0[ctx_id],
                 0..MC::SLOT_SIZE,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -349,8 +386,9 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     // UNSAFE: creates second slot with the same status
-    pub unsafe fn clone_slot_on_device(&mut self, id: PolyId, form: PolyForm,) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
+    pub unsafe fn clone_slot_on_device(&mut self, id: PolyId, form: PolyForm) -> GpuResult<()> {
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
         let new_idx = self.free_slot_idx().expect("No free slots");
 
@@ -361,7 +399,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 &mut self.ctx[ctx_id],
                 &mut slot_2.0[ctx_id],
                 0..MC::SLOT_SIZE,
-                0..MC::SLOT_SIZE
+                0..MC::SLOT_SIZE,
             )?;
         }
         self.slots[new_idx].1 = SlotStatus::Busy(id, form);
@@ -377,7 +415,8 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         ptr: *const Fr,
         range: Range<usize>,
     ) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for ctx_id in 0..MC::NUM_GPUS {
@@ -404,14 +443,10 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 }
 
-pub(crate) fn get_two_mut<T>(
-    vector: &mut Vec<T>, 
-    idx_1: usize, 
-    idx_2: usize
-) -> (&mut T, &mut T) {
+pub(crate) fn get_two_mut<T>(vector: &mut Vec<T>, idx_1: usize, idx_2: usize) -> (&mut T, &mut T) {
     assert_ne!(idx_1, idx_2);
 
-    if idx_1 < idx_2{
+    if idx_1 < idx_2 {
         let (part_1, part_2) = vector.split_at_mut(idx_2);
 
         (&mut part_1[idx_1], &mut part_2[0])
@@ -422,15 +457,12 @@ pub(crate) fn get_two_mut<T>(
     }
 }
 
-pub(crate) fn get_multi_mut<T>(
-    vector: &mut [T], 
-    ids: Vec<usize>, 
-) -> Vec<&mut T> {
+pub(crate) fn get_multi_mut<T>(vector: &mut [T], ids: Vec<usize>) -> Vec<&mut T> {
     let length = vector.len();
     let number = ids.len();
 
     for i in 0..number {
-        for j in i+1..number {
+        for j in i + 1..number {
             assert_ne!(ids[i], ids[j], "idxs should be different");
         }
         assert!(ids[i] < length, "idx is out of range");

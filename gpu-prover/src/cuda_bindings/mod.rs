@@ -21,12 +21,16 @@ mod error;
 mod event;
 mod stream;
 
+// pub use async_vec::*;
 pub use context::*;
 pub use device_arithmetic::*;
 pub use device_buf::*;
 pub use error::*;
 pub use event::*;
 pub use stream::*;
+
+// #[cfg(test)]
+// mod tests;
 
 #[derive(Clone, Debug, Default)]
 pub struct DeviceMemoryInfo {

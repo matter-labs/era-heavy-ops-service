@@ -14,6 +14,12 @@ pub fn create_proof<
     setup: &mut AsyncSetup,
     transcript_params: Option<T::InitializationParameters>,
 ) -> Result<Proof<Bn256, C>, ProvingError> {
+    // if S::PRODUCE_SETUP {
+    //     compute_assigments_and_permutations(manager, assembly, worker)?;
+    // } else {
+    //     assign_cs_variables(manager, assembly, worker)?;
+    // }
+
     compute_assigments_and_permutations(manager, assembly, worker)?;
 
     let (mut proof, mut transcript, mut constants, input_values) =
@@ -21,6 +27,7 @@ pub fn create_proof<
 
     let mut msm_handles_round1 = vec![];
 
+    // dbg!(1);
     round1(
         manager,
         &assembly,
@@ -32,6 +39,7 @@ pub fn create_proof<
     )
     .expect("Round 1 failed");
 
+    // dbg!(1.5);
     round15(
         manager,
         &assembly,
@@ -44,6 +52,7 @@ pub fn create_proof<
     )
     .expect("Round 1.5 failed");
 
+    // dbg!(2);
     round2(
         manager,
         &assembly,
@@ -56,6 +65,7 @@ pub fn create_proof<
     )
     .expect("Round 2 failed");
 
+    // dbg!(3);
     round3(
         manager,
         &assembly,
@@ -106,6 +116,7 @@ fn create_initial_variables<
     for inp in input_values.iter() {
         transcript.commit_field_element(inp);
     }
+    println!("{:?} INPUT", &input_values.len());
 
     (proof, transcript, constants, input_values)
 }

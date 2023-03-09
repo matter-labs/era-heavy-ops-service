@@ -4,17 +4,21 @@ use crate::cuda_bindings::GpuError;
 impl DeviceBuf<Fr> {
     pub fn msm(&mut self, ctx: &mut GpuContext) -> GpuResult<DeviceBuf<G1>> {
         let length = self.len();
-        assert_eq!(length, ctx.bases_len, "length of polynomial and bases should be equal");
-        assert!(ctx.mem_pool.is_some(), "mem_pool should be set up on GpuContext");
+        assert_eq!(
+            length, ctx.bases_len,
+            "length of polynomial and bases should be equal"
+        );
+        assert!(
+            ctx.mem_pool.is_some(),
+            "mem_pool should be set up on GpuContext"
+        );
         set_device(ctx.device_id())?;
 
         let mut result = DeviceBuf::<G1>::async_alloc_in_exec(ctx, 254)?;
         ctx.exec_stream.wait(self.write_event())?;
 
         let null_ptr = std::ptr::null_mut() as *mut c_void;
-        let null_event = bc_event {
-            handle: null_ptr,
-        };
+        let null_event = bc_event { handle: null_ptr };
 
         let cfg = msm_configuration {
             mem_pool: ctx.mem_pool.unwrap(),
@@ -33,7 +37,7 @@ impl DeviceBuf<Fr> {
 
         unsafe {
             let result = msm_execute_async(cfg);
-            if  result != 0 {
+            if result != 0 {
                 return Err(GpuError::MSMErr(result));
             };
         }
@@ -45,7 +49,10 @@ impl DeviceBuf<Fr> {
     }
 
     pub fn evaluate_at(&mut self, ctx: &mut GpuContext, mut point: Fr) -> GpuResult<DeviceBuf<Fr>> {
-        assert!(ctx.mem_pool.is_some(), "mem_pool should be set up on GpuContext");
+        assert!(
+            ctx.mem_pool.is_some(),
+            "mem_pool should be set up on GpuContext"
+        );
         assert!(ctx.ff, "ff should be set up on GpuContext");
         set_device(ctx.device_id())?;
 
@@ -57,14 +64,14 @@ impl DeviceBuf<Fr> {
             mem_pool: ctx.mem_pool.unwrap(),
             stream: ctx.exec_stream.inner,
             values: self.as_mut_ptr(0..length) as *mut c_void,
-            point: &mut point as *mut Fr as *mut c_void, 
+            point: &mut point as *mut Fr as *mut c_void,
             result: result.as_mut_ptr(0..1) as *mut c_void,
             count: length as u32,
         };
 
-        unsafe{
+        unsafe {
             let result = ff_poly_evaluate(cfg);
-            if  result != 0{
+            if result != 0 {
                 return Err(GpuError::EvaluationErr(result));
             }
         }
@@ -76,15 +83,14 @@ impl DeviceBuf<Fr> {
     }
 
     pub fn ntt(
-        buffers: &mut Vec<&mut Self>, 
-        ctx: &mut GpuContext, 
-        bits_reversed: bool, 
-        inverse: bool, 
-        coset_index: Option<usize>, 
+        buffers: &mut Vec<&mut Self>,
+        ctx: &mut GpuContext,
+        bits_reversed: bool,
+        inverse: bool,
+        coset_index: Option<usize>,
         lde_factor: Option<u32>,
         final_bitreverse: bool,
     ) -> GpuResult<()> {
-        
         set_device(ctx.device_id())?;
 
         let mut length = buffers[0].len();
@@ -93,19 +99,25 @@ impl DeviceBuf<Fr> {
             ctx.exec_stream.wait(buffer.read_event())?;
         }
 
-        for i in 0..(buffers.len()-1) {
+        for i in 0..(buffers.len() - 1) {
             assert_eq!(
                 buffers[i].as_ptr(length..length),
-                buffers[i+1].as_ptr(0..0),
+                buffers[i + 1].as_ptr(0..0),
                 "Buffers should be allocated one by one"
             );
 
-            assert_eq!(length, buffers[i+1].len(), "Buffers' lengths are not equal");
+            assert_eq!(
+                length,
+                buffers[i + 1].len(),
+                "Buffers' lengths are not equal"
+            );
         }
 
         let d_scalars = buffers[0].as_ptr(0..length);
         length = length * buffers.len();
 
+        // use bellman::PrimeField;
+        // let fr_size = Fr::zero().into_raw_repr().as_ref().len() * 8;
         let log_scalars_count = log_2(length);
 
         let mut log_extension_degree = 0;
@@ -114,6 +126,9 @@ impl DeviceBuf<Fr> {
             log_extension_degree = log_2(lde_factor as usize);
             coset_idx = bitreverse(coset_idxt, log_extension_degree as usize);
         }
+
+        // this.coset_index = coset_index as u32;
+        // this.log_extension_degree = log_extension_degree;
 
         let cfg = ntt_configuration {
             mem_pool: ctx.mem_pool.expect("mem_pool should be allocated"),
@@ -123,49 +138,68 @@ impl DeviceBuf<Fr> {
             log_values_count: log_scalars_count,
             bit_reversed_inputs: bits_reversed,
             inverse,
-            h2d_copy_finished: bc_event {handle: std::ptr::null_mut() as *mut c_void},
+            h2d_copy_finished: bc_event {
+                handle: std::ptr::null_mut() as *mut c_void,
+            },
             h2d_copy_finished_callback: None,
             h2d_copy_finished_callback_data: std::ptr::null_mut() as *mut c_void,
-            d2h_copy_finished: bc_event {handle: std::ptr::null_mut() as *mut c_void},
+            d2h_copy_finished: bc_event {
+                handle: std::ptr::null_mut() as *mut c_void,
+            },
             d2h_copy_finished_callback: None,
             d2h_copy_finished_callback_data: std::ptr::null_mut() as *mut c_void,
             can_overwrite_inputs: false,
             coset_index: coset_idx as u32,
             log_extension_degree: log_extension_degree,
         };
-        
-        unsafe{
-            let result = ntt_execute_async(cfg) ;
-            if result != 0{
+
+        unsafe {
+            let result = ntt_execute_async(cfg);
+            if result != 0 {
                 return Err(GpuError::NTTErr(result));
             }
         }
 
-        for buffer in buffers.iter_mut(){
+        // if final_bitreverse {
+        //     if unsafe { ff_bit_reverse(
+        //         d_scalars as *const c_void,
+        //         d_scalars as *mut c_void,
+        //         log_scalars_count as u32,
+        //         ctx.exec_stream.inner,
+        //     ) } != 0 {
+        //         return Err(GpuError::SchedulingErr);
+        //     }
+        // }
+
+        for buffer in buffers.iter_mut() {
             buffer.read_event.record(ctx.exec_stream())?;
             buffer.write_event.record(ctx.exec_stream())?;
         }
 
         if final_bitreverse {
-           DeviceBuf::bitreverse(buffers, ctx)?;
+            DeviceBuf::bitreverse(buffers, ctx)?;
         }
-        
+
         Ok(())
     }
 
     pub fn multigpu_ntt(
-        buffers: &mut Vec<Self>, 
-        ctx: &mut Vec<GpuContext>, 
-        bits_reversed: bool, 
-        inverse: bool, 
-        coset_index: Option<usize>, 
+        buffers: &mut Vec<Self>,
+        ctx: &mut Vec<GpuContext>,
+        bits_reversed: bool,
+        inverse: bool,
+        coset_index: Option<usize>,
         lde_factor: Option<u32>,
         final_bitreverse: bool,
     ) -> GpuResult<()> {
         assert_eq!(buffers.len(), ctx.len());
         let mut length = buffers[0].len();
-        for i in 0..(buffers.len()-1) {
-            assert_eq!(length, buffers[i+1].len(), "Buffers' lengths are not equal");
+        for i in 0..(buffers.len() - 1) {
+            assert_eq!(
+                length,
+                buffers[i + 1].len(),
+                "Buffers' lengths are not equal"
+            );
         }
 
         length = length * buffers.len();
@@ -177,7 +211,7 @@ impl DeviceBuf<Fr> {
             log_extension_degree = log_2(lde_factor as usize);
             coset_idx = bitreverse(coset_idxt, log_extension_degree as usize);
         }
-        
+
         let mut cfgs = vec![];
         let mut dev_ids = vec![];
 
@@ -190,17 +224,23 @@ impl DeviceBuf<Fr> {
             let d_scalars = buffer.as_ptr(0..buffer.len());
 
             let cfg = ntt_configuration {
-                mem_pool: ctx[buffer_idx].mem_pool.expect("mem_pool should be allocated"),
+                mem_pool: ctx[buffer_idx]
+                    .mem_pool
+                    .expect("mem_pool should be allocated"),
                 stream: ctx[buffer_idx].exec_stream().inner,
                 inputs: d_scalars as *mut c_void,
                 outputs: d_scalars as *mut c_void,
                 log_values_count: log_scalars_count,
                 bit_reversed_inputs: bits_reversed,
                 inverse,
-                h2d_copy_finished: bc_event {handle: std::ptr::null_mut() as *mut c_void},
+                h2d_copy_finished: bc_event {
+                    handle: std::ptr::null_mut() as *mut c_void,
+                },
                 h2d_copy_finished_callback: None,
                 h2d_copy_finished_callback_data: std::ptr::null_mut() as *mut c_void,
-                d2h_copy_finished: bc_event {handle: std::ptr::null_mut() as *mut c_void},
+                d2h_copy_finished: bc_event {
+                    handle: std::ptr::null_mut() as *mut c_void,
+                },
                 d2h_copy_finished_callback: None,
                 d2h_copy_finished_callback_data: std::ptr::null_mut() as *mut c_void,
                 can_overwrite_inputs: false,
@@ -210,15 +250,17 @@ impl DeviceBuf<Fr> {
 
             cfgs.push(cfg);
             dev_ids.push(device_id as i32);
-
         }
+
+        // let cfgs = &mut cfgs as *mut Vec<ntt_configuration> as *mut ntt_configuration;
+        // let dev_ids = &mut dev_ids as *mut Vec<i32> as *mut ::std::os::raw::c_int;
 
         let cfgs = &mut cfgs[0] as *mut ntt_configuration;
         let dev_ids = &mut dev_ids[0] as *mut ::std::os::raw::c_int;
-        
-        unsafe{
+
+        unsafe {
             let result = ntt_execute_async_multigpu(cfgs, dev_ids, log_2(buffers.len()));
-            if result != 0{
+            if result != 0 {
                 return Err(GpuError::MultiGpuNTTErr(result));
             }
         }
@@ -231,23 +273,27 @@ impl DeviceBuf<Fr> {
         if final_bitreverse {
             DeviceBuf::multigpu_bitreverse(buffers, ctx)?;
         }
-        
+
         Ok(())
     }
 
     pub fn multigpu_4n_ntt(
-        buffers: &mut Vec<&mut Self>, 
-        ctx: &mut Vec<GpuContext>, 
-        bits_reversed: bool, 
-        inverse: bool, 
-        coset_index: Option<usize>, 
+        buffers: &mut Vec<&mut Self>,
+        ctx: &mut Vec<GpuContext>,
+        bits_reversed: bool,
+        inverse: bool,
+        coset_index: Option<usize>,
         lde_factor: Option<u32>,
         final_bitreverse: bool,
     ) -> GpuResult<()> {
         let mut length = buffers[0].len();
         let num_gpus = buffers.len() / crate::LDE_FACTOR;
-        for i in 0..(buffers.len()-1) {
-            assert_eq!(length, buffers[i+1].len(), "Buffers' lengths are not equal");
+        for i in 0..(buffers.len() - 1) {
+            assert_eq!(
+                length,
+                buffers[i + 1].len(),
+                "Buffers' lengths are not equal"
+            );
         }
 
         length = length * buffers.len();
@@ -259,7 +305,7 @@ impl DeviceBuf<Fr> {
             log_extension_degree = log_2(lde_factor as usize);
             coset_idx = bitreverse(coset_idxt, log_extension_degree as usize);
         }
-        
+
         let mut cfgs = vec![];
         let mut dev_ids = vec![];
 
@@ -281,10 +327,14 @@ impl DeviceBuf<Fr> {
                 log_values_count: log_scalars_count,
                 bit_reversed_inputs: bits_reversed,
                 inverse,
-                h2d_copy_finished: bc_event {handle: std::ptr::null_mut() as *mut c_void},
+                h2d_copy_finished: bc_event {
+                    handle: std::ptr::null_mut() as *mut c_void,
+                },
                 h2d_copy_finished_callback: None,
                 h2d_copy_finished_callback_data: std::ptr::null_mut() as *mut c_void,
-                d2h_copy_finished: bc_event {handle: std::ptr::null_mut() as *mut c_void},
+                d2h_copy_finished: bc_event {
+                    handle: std::ptr::null_mut() as *mut c_void,
+                },
                 d2h_copy_finished_callback: None,
                 d2h_copy_finished_callback_data: std::ptr::null_mut() as *mut c_void,
                 can_overwrite_inputs: false,
@@ -296,11 +346,15 @@ impl DeviceBuf<Fr> {
             dev_ids.push(device_id as i32);
         }
 
+        // let cfgs = &mut cfgs as *mut Vec<ntt_configuration> as *mut ntt_configuration;
+        // let dev_ids = &mut dev_ids as *mut Vec<i32> as *mut ::std::os::raw::c_int;
+
         let cfgs = &mut cfgs[0] as *mut ntt_configuration;
         let dev_ids = &mut dev_ids[0] as *mut ::std::os::raw::c_int;
         let log_n_dev = log_2(buffers.len());
 
-        unsafe{
+        // dbg!(log_n_dev);
+        unsafe {
             let result = ntt_execute_async_multigpu(cfgs, dev_ids, log_n_dev);
             if result != 0 {
                 return Err(GpuError::MultiGpuLargeNTTErr(result));
@@ -312,14 +366,15 @@ impl DeviceBuf<Fr> {
             buffer.read_event.record(ctx[ctx_id].exec_stream())?;
             buffer.write_event.record(ctx[ctx_id].exec_stream())?;
         }
-        
+
+        // if final_bitreverse {
+        //     DeviceBuf::multigpu_bitreverse(buffers, ctx)?;
+        // }
+
         Ok(())
     }
 
-    pub fn bitreverse(
-        buffers: &mut Vec<&mut Self>, 
-        ctx: &mut GpuContext
-    ) -> GpuResult<()> {
+    pub fn bitreverse(buffers: &mut Vec<&mut Self>, ctx: &mut GpuContext) -> GpuResult<()> {
         set_device(ctx.device_id())?;
         let mut length = buffers[0].len();
         for buffer in buffers.iter() {
@@ -327,21 +382,25 @@ impl DeviceBuf<Fr> {
             ctx.exec_stream.wait(buffer.read_event())?;
         }
 
-        for i in 0..(buffers.len()-1) {
+        for i in 0..(buffers.len() - 1) {
             assert_eq!(
                 buffers[i].as_ptr(length..length),
-                buffers[i+1].as_ptr(0..0),
+                buffers[i + 1].as_ptr(0..0),
                 "Buffers should be allocated one by one"
             );
 
-            assert_eq!(length, buffers[i+1].len(), "Buffers' lengths are not equal");
+            assert_eq!(
+                length,
+                buffers[i + 1].len(),
+                "Buffers' lengths are not equal"
+            );
         }
 
         let d_scalars = buffers[0].as_ptr(0..length);
         length = length * buffers.len();
 
         let log_scalars_count = log_2(length);
-        unsafe{
+        unsafe {
             let result = ff_bit_reverse(
                 d_scalars as *const c_void,
                 d_scalars as *mut c_void,
@@ -352,9 +411,8 @@ impl DeviceBuf<Fr> {
                 return Err(GpuError::BitReverseErr(result));
             }
         }
-        
-    
-        for buffer in buffers.into_iter(){
+
+        for buffer in buffers.into_iter() {
             buffer.read_event.record(ctx.exec_stream())?;
             buffer.write_event.record(ctx.exec_stream())?;
         }
@@ -363,12 +421,16 @@ impl DeviceBuf<Fr> {
     }
 
     pub fn multigpu_bitreverse(
-        buffers: &mut Vec<Self>, 
+        buffers: &mut Vec<Self>,
         ctx: &mut Vec<GpuContext>,
     ) -> GpuResult<()> {
         let mut length = buffers[0].len();
-        for i in 0..(buffers.len()-1) {
-            assert_eq!(length, buffers[i+1].len(), "Buffers' lengths are not equal");
+        for i in 0..(buffers.len() - 1) {
+            assert_eq!(
+                length,
+                buffers[i + 1].len(),
+                "Buffers' lengths are not equal"
+            );
         }
 
         length = length * buffers.len();
@@ -394,7 +456,7 @@ impl DeviceBuf<Fr> {
         let values = &mut values[0] as *mut *const Fr;
         let dev_ids = &mut dev_ids[0] as *mut ::std::os::raw::c_int;
         let streams = &mut streams[0] as *mut bc_stream;
-        unsafe{
+        unsafe {
             let result = ff_bit_reverse_multigpu(
                 values as *mut *const c_void,
                 values as *mut *mut c_void,
@@ -407,7 +469,7 @@ impl DeviceBuf<Fr> {
                 return Err(GpuError::MultiGpuBitReverseErr(result));
             }
         }
-    
+
         for (device_id, buffer) in buffers.iter_mut().enumerate() {
             buffer.read_event.record(ctx[device_id].exec_stream())?;
             buffer.write_event.record(ctx[device_id].exec_stream())?;
@@ -415,8 +477,6 @@ impl DeviceBuf<Fr> {
 
         Ok(())
     }
-
-
 }
 
 pub fn log_2(num: usize) -> u32 {

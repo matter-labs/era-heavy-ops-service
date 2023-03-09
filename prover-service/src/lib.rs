@@ -85,14 +85,12 @@ impl std::fmt::Debug for JobResult {
                 .field(arg0)
                 .field(&arg1)
                 .finish(),
-            Self::SetupLoaderWaitedIdle(arg0) => f
-                .debug_tuple("SetupLoaderWaitedIdle")
-                .field(arg0)
-                .finish(),
-            Self::SchedulerWaitedIdle(arg0) => f
-                .debug_tuple("SchedulerWaitedIdle")
-                .field(arg0)
-                .finish(),
+            Self::SetupLoaderWaitedIdle(arg0) => {
+                f.debug_tuple("SetupLoaderWaitedIdle").field(arg0).finish()
+            }
+            Self::SchedulerWaitedIdle(arg0) => {
+                f.debug_tuple("SchedulerWaitedIdle").field(arg0).finish()
+            }
             Self::AssemblyFinalized(arg0, arg1) => f
                 .debug_tuple("AssemblyFinalized")
                 .field(arg0)

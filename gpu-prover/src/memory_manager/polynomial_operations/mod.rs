@@ -19,20 +19,27 @@ impl MSMHandle {
             assert_eq!(buf.len(), 254, "all buffers should have length 254");
         }
 
-        Self{ result: buffers }
+        Self { result: buffers }
     }
 
-    pub fn get_result<MC: ManagerConfigs>(mut self, manager: &mut DeviceMemoryManager<Fr, MC>) -> GpuResult<G1Affine> {
-        assert_eq!(self.result.len(), MC::NUM_GPUS, "number of buffers should be equal to number of GPUs");
+    pub fn get_result<MC: ManagerConfigs>(
+        mut self,
+        manager: &mut DeviceMemoryManager<Fr, MC>,
+    ) -> GpuResult<G1Affine> {
+        assert_eq!(
+            self.result.len(),
+            MC::NUM_GPUS,
+            "number of buffers should be equal to number of GPUs"
+        );
 
         let mut result = G1::zero();
-        
+
         for device_id in 0..MC::NUM_GPUS {
             manager.host_buf_for_msm.async_copy_from_device(
                 &mut manager.ctx[device_id],
                 &mut self.result[device_id],
                 0..NUM_MSM_RESULT_POINTS,
-                0..NUM_MSM_RESULT_POINTS
+                0..NUM_MSM_RESULT_POINTS,
             )?;
 
             let mut tmp_sum = G1::zero();
@@ -60,11 +67,21 @@ impl EvaluationHandle {
             assert_eq!(buf.len(), 1, "all buffers should have length 1");
         }
 
-        Self{ result: buffers, base_pow }
+        Self {
+            result: buffers,
+            base_pow,
+        }
     }
 
-    pub fn get_result<MC: ManagerConfigs>(mut self, manager: &mut DeviceMemoryManager<Fr, MC>) -> GpuResult<Fr> {
-        assert_eq!(self.result.len(), MC::NUM_GPUS, "number of buffers should be equal to number of GPUs");
+    pub fn get_result<MC: ManagerConfigs>(
+        mut self,
+        manager: &mut DeviceMemoryManager<Fr, MC>,
+    ) -> GpuResult<Fr> {
+        assert_eq!(
+            self.result.len(),
+            MC::NUM_GPUS,
+            "number of buffers should be equal to number of GPUs"
+        );
 
         let mut result = Fr::zero();
 
@@ -81,5 +98,5 @@ impl EvaluationHandle {
         }
 
         Ok(result)
-    }    
+    }
 }

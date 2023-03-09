@@ -1,12 +1,16 @@
+#![feature(get_mut_unchecked)]
 #![feature(nonnull_slice_from_raw_parts)]
 #![cfg_attr(feature = "allocator", feature(allocator_api))]
 pub mod cuda_bindings;
+// mod cuda_memory;
 mod memory_manager;
 mod proof;
 mod rounds;
 mod setup_precomputations;
 mod utils;
 
+// pub use cuda_bindings::*;
+// pub use cuda_memory::*;
 pub use franklin_crypto::bellman;
 pub use memory_manager::*;
 pub use proof::*;
@@ -14,13 +18,6 @@ pub use rounds::*;
 pub use setup_precomputations::*;
 pub use utils::*;
 
-use bellman::pairing::{
-    // compact_bn256::{Bn256, Fr, FrRepr},
-    bn256::{Bn256, Fr, FrRepr, G1Affine, G1},
-    ff::{Field, PrimeField},
-    CurveAffine,
-    Engine,
-};
 use bellman::{
     kate_commitment::{Crs, CrsForMonomialForm},
     plonk::better_better_cs::gates::main_gate_with_d_next::Width4MainGateWithDNext,
@@ -32,6 +29,14 @@ use bellman::{
     plonk::commitments::transcript::Transcript,
     worker::Worker,
     SynthesisError,
+};
+// pub use gpu_ffi::{GpuContext, GpuError, set_device};
+use bellman::pairing::{
+    // compact_bn256::{Bn256, Fr, FrRepr},
+    bn256::{Bn256, Fr, FrRepr, G1Affine, G1},
+    ff::{Field, PrimeField},
+    CurveAffine,
+    Engine,
 };
 type CompactG1Affine = bellman::compact_bn256::G1Affine;
 use std::ffi::c_void;
@@ -48,7 +53,9 @@ cfg_if! {
         use std::alloc::{Allocator, Global};
         use cuda_bindings::cuda_allocator::CudaAllocator;
         type DefaultAssembly<S> = Assembly<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext,S, cuda_bindings::CudaAllocator>;
+        // pub type AsyncVec<T> = OriginalAsyncVec<T, cuda_bindings::CudaAllocator>;
     }else{
         type DefaultAssembly<S> = Assembly<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext,S>;
+        // pub type AsyncVec<T> = OriginalAsyncVec<T>;
     }
 }

@@ -1,24 +1,26 @@
 use super::*;
 
-use api::bellman::compact_bn256::{Bn256, Fr, G1Affine, G1};
-use api::bellman::plonk::better_better_cs::cs::MainGate;
-use api::bellman::plonk::better_better_cs::cs::*;
-use api::bellman::plonk::better_better_cs::{
-    cs::{Circuit, GateInternal},
-    gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext,
+use zkevm_test_harness::franklin_crypto::bellman::compact_bn256::{Bn256, Fr, G1Affine, G1};
+use zkevm_test_harness::franklin_crypto::bellman::plonk::better_better_cs::cs::MainGate;
+use zkevm_test_harness::franklin_crypto::bellman::plonk::better_better_cs::cs::*;
+use zkevm_test_harness::franklin_crypto::{
+    bellman::plonk::better_better_cs::{
+        cs::{Circuit, GateInternal},
+        gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext,
+    },
+    plonk::circuit::{
+        allocated_num::Num, boolean::Boolean, custom_rescue_gate::Rescue5CustomGate,
+        linear_combination::LinearCombination,
+    },
 };
-use franklin_crypto::plonk::circuit::{
-    allocated_num::Num, boolean::Boolean, custom_rescue_gate::Rescue5CustomGate,
-    linear_combination::LinearCombination,
-};
-use rand::{SeedableRng, XorShiftRng};
 
 use bellman::{Engine, Field, PrimeField, SynthesisError};
-use rescue_poseidon::{
+use zkevm_test_harness::sync_vm::rescue_poseidon::{
     circuit_generic_hash, CustomGate, HashParams, RescueParams,
 };
+// use rand::{thread_rng, Rand, Rng};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NonTrivialCircuit<E: Engine, MG: MainGate<E>> {
     log_degree: usize,
     hash_params: RescueParams<E, 2, 3>,
@@ -55,8 +57,6 @@ impl<E: Engine, MG: MainGate<E>> Circuit<E> for NonTrivialCircuit<E, MG> {
     }
 
     fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
-        use rand::Rand;
-        let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
         let columns = vec![
             PolyIdentifier::VariablesPolynomial(0),
             PolyIdentifier::VariablesPolynomial(1),
@@ -88,12 +88,15 @@ impl<E: Engine, MG: MainGate<E>> Circuit<E> for NonTrivialCircuit<E, MG> {
         }
 
         // allocate at least 1 pub gate
-        let p0 = cs.alloc_input(|| Ok(E::Fr::rand(rng)))?;
-        let p1 = cs.alloc_input(|| Ok(E::Fr::rand(rng)))?;
-        let p2 = cs.alloc_input(|| Ok(E::Fr::rand(rng)))?;
+        let p0 = cs.alloc_input(|| Ok(E::Fr::from_str("33").unwrap()))?;
+        let p1 = cs.alloc_input(|| Ok(E::Fr::from_str("66").unwrap()))?;
+        let p2 = cs.alloc_input(|| Ok(E::Fr::from_str("99").unwrap()))?;
 
         for loop_id in 1..=num_loop {
-            let input = [Num::alloc(cs, Some(E::Fr::rand(rng)))?; 2];
+            let input = [Num::alloc(
+                cs,
+                Some(E::Fr::from_str(&format!("{}22", loop_id)).unwrap()),
+            )?; 2];
             let _ = circuit_generic_hash(cs, &input, &self.hash_params, None)?;
 
             let binary_x_wit = loop_id % modulus;
@@ -119,11 +122,11 @@ impl<E: Engine, MG: MainGate<E>> Circuit<E> for NonTrivialCircuit<E, MG> {
 
             cs.end_gates_batch_for_step()?;
 
-            let a_wit = E::Fr::rand(rng);
+            let a_wit = E::Fr::from_str(&format!("{}33", loop_id)).unwrap();
             let a = Num::alloc(cs, Some(a_wit))?;
-            let b_wit = E::Fr::rand(rng);
+            let b_wit = E::Fr::from_str(&format!("{}66", loop_id)).unwrap();
             let b = Num::alloc(cs, Some(b_wit))?;
-            let c_wit = E::Fr::rand(rng);
+            let c_wit = E::Fr::from_str(&format!("{}99", loop_id)).unwrap();
             let c = Num::alloc(cs, Some(c_wit))?;
 
             let one = E::Fr::one();
@@ -139,9 +142,9 @@ impl<E: Engine, MG: MainGate<E>> Circuit<E> for NonTrivialCircuit<E, MG> {
             lc.add_assign_number_with_coeff(&c, minus_one);
             lc.enforce_zero(cs)?;
 
-            let a_wit = E::Fr::rand(rng);
+            let a_wit = E::Fr::from_str(&format!("{}44", loop_id)).unwrap();
             let a = Num::alloc(cs, Some(a_wit))?;
-            let b_wit = E::Fr::rand(rng);
+            let b_wit = E::Fr::from_str(&format!("{}55", loop_id)).unwrap();
             let b = Num::alloc(cs, Some(b_wit))?;
             let flag = Boolean::alloc(cs, Some(loop_id % 2 != 0))?;
             Num::conditionally_select(cs, &flag, &a, &b)?;

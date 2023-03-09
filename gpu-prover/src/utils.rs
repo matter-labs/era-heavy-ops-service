@@ -1,7 +1,7 @@
 use super::*;
 use bellman::pairing::{CurveAffine, GenericCurveProjective};
-use rand::{thread_rng, Rng};
 use core::ops::Range;
+use rand::{thread_rng, Rng};
 
 pub(crate) fn generate_scalars_to_buf<F: PrimeField>(worker: &Worker, buf: &mut [F]) {
     assert!(buf.len().is_power_of_two());
@@ -95,8 +95,8 @@ pub fn transmute_values_mut<'a, U, V, const R: bool>(values: &'a mut [U]) -> &'a
 pub fn async_copy<T: Copy + Send + Sync>(worker: &Worker, dest: &mut [T], src: &[T]) {
     let length = dest.len();
     assert_eq!(length, src.len());
-    
-    worker.scope(length, |scope, chunk_size|{
+
+    worker.scope(length, |scope, chunk_size| {
         for (range, chunk) in chunks_mut_with_ranges!(chunk_size, dest) {
             let src_ref = &src;
             scope.spawn(move |_| {
@@ -116,8 +116,8 @@ pub fn fill_with_ones<F: PrimeField>(worker: &Worker, dest: &mut [F]) {
 
 pub fn fill_with<T: Copy + Send>(worker: &Worker, dest: &mut [T], value: T) {
     let length = dest.len();
-    assert!(length > 0 );
-    worker.scope(length, |scope, chunk_size|{
+    assert!(length > 0);
+    worker.scope(length, |scope, chunk_size| {
         for (_, chunk) in chunks_mut_with_ranges!(chunk_size, dest) {
             scope.spawn(move |_| {
                 for el in chunk.iter_mut() {
@@ -131,7 +131,7 @@ pub fn fill_with<T: Copy + Send>(worker: &Worker, dest: &mut [T], value: T) {
 #[cfg(feature = "allocator")]
 pub fn empty_vec<T, A: Allocator + Default>(len: usize) -> std::vec::Vec<T, A> {
     let mut res = Vec::with_capacity_in(len, A::default());
-    unsafe{
+    unsafe {
         res.set_len(len);
     }
     res
@@ -139,12 +139,11 @@ pub fn empty_vec<T, A: Allocator + Default>(len: usize) -> std::vec::Vec<T, A> {
 #[cfg(not(feature = "allocator"))]
 pub fn empty_vec<T>(len: usize) -> Vec<T> {
     let mut res = Vec::with_capacity(len);
-    unsafe{
+    unsafe {
         res.set_len(len);
     }
     res
 }
-
 
 #[macro_export]
 macro_rules! chunks_mut_with_ranges{
@@ -193,7 +192,7 @@ pub fn ranges_from_length_and_chunk_size(length: usize, chunk_size: usize) -> Ve
 
 pub fn async_sort<T: Ord + Send + Copy>(worker: &Worker, vals: &mut Vec<T>) {
     let length = vals.len();
-    let num_cpus = if let Ok(num_cpus) = std::env::var("NUM_CPUS"){
+    let num_cpus = if let Ok(num_cpus) = std::env::var("NUM_CPUS") {
         num_cpus.parse().unwrap()
     } else {
         num_cpus::get()
@@ -201,31 +200,29 @@ pub fn async_sort<T: Ord + Send + Copy>(worker: &Worker, vals: &mut Vec<T>) {
 
     let mut chunk_size = get_chunk_size(num_cpus, length);
 
-    crossbeam::scope(
-        |scope| {
-            for chunk in vals.chunks_mut(chunk_size) {
-                scope.spawn(move |_| {
-                    chunk.sort();
-                });
-            }
+    crossbeam::scope(|scope| {
+        for chunk in vals.chunks_mut(chunk_size) {
+            scope.spawn(move |_| {
+                chunk.sort();
+            });
         }
-    ).expect("must run sorting chunks");
+    })
+    .expect("must run sorting chunks");
 
     while chunk_size < length {
-        crossbeam::scope(
-            |scope| {
-                for chunks in vals.chunks_mut(2 * chunk_size) {
-                    scope.spawn(move |_| {
-                        if chunks.len() > chunk_size {
-                            let mut chunks: Vec<&mut [T]> = chunks.chunks_mut(chunk_size).collect();
-                            let chunk2 = chunks.pop().unwrap();
-                            let chunk1 = chunks.pop().unwrap();
-                            sorting_merge(chunk1, chunk2);
-                        }
-                    });
-                }
+        crossbeam::scope(|scope| {
+            for chunks in vals.chunks_mut(2 * chunk_size) {
+                scope.spawn(move |_| {
+                    if chunks.len() > chunk_size {
+                        let mut chunks: Vec<&mut [T]> = chunks.chunks_mut(chunk_size).collect();
+                        let chunk2 = chunks.pop().unwrap();
+                        let chunk1 = chunks.pop().unwrap();
+                        sorting_merge(chunk1, chunk2);
+                    }
+                });
             }
-        ).expect("must run merging sorted chunks");
+        })
+        .expect("must run merging sorted chunks");
 
         chunk_size *= 2;
     }
@@ -280,16 +277,12 @@ pub fn get_chunk_size(num_cpus: usize, elements: usize) -> usize {
 }
 
 use bit_vec::BitVec;
-pub fn bitvec_to_field_buffer(
-    worker: &Worker,
-    bitvec: &BitVec,
-    buffer: &mut [Fr],
-) {
+pub fn bitvec_to_field_buffer(worker: &Worker, bitvec: &BitVec, buffer: &mut [Fr]) {
     worker.scope(bitvec.len(), |scope, chunk_len| {
         for (i, chunk) in buffer.chunks_mut(chunk_len).enumerate() {
             let bitvec_ref = &bitvec;
             scope.spawn(move |_| {
-                for (bit, el) in bitvec_ref.iter().skip(i*chunk_len).zip(chunk.iter_mut()) {
+                for (bit, el) in bitvec_ref.iter().skip(i * chunk_len).zip(chunk.iter_mut()) {
                     if bit {
                         *el = Fr::one();
                     } else {
@@ -301,16 +294,12 @@ pub fn bitvec_to_field_buffer(
     });
 }
 
-pub fn vec_of_bits_to_field_buffer(
-    worker: &Worker,
-    bitvec: &Vec<bool>,
-    buffer: &mut [Fr],
-) {
+pub fn vec_of_bits_to_field_buffer(worker: &Worker, bitvec: &Vec<bool>, buffer: &mut [Fr]) {
     worker.scope(bitvec.len(), |scope, chunk_len| {
         for (i, chunk) in buffer.chunks_mut(chunk_len).enumerate() {
             let bitvec_ref = &bitvec;
             scope.spawn(move |_| {
-                for (bit, el) in bitvec_ref.iter().skip(i*chunk_len).zip(chunk.iter_mut()) {
+                for (bit, el) in bitvec_ref.iter().skip(i * chunk_len).zip(chunk.iter_mut()) {
                     if *bit {
                         *el = Fr::one();
                     } else {
@@ -322,17 +311,16 @@ pub fn vec_of_bits_to_field_buffer(
     });
 }
 
-
-#[cfg(not(feature="allocator"))]
+#[cfg(not(feature = "allocator"))]
 macro_rules! new_vec_with_allocator {
     ($capacity:expr) => {
         Vec::with_capacity($capacity)
-    }
+    };
 }
 
-#[cfg(feature="allocator")]
+#[cfg(feature = "allocator")]
 macro_rules! new_vec_with_allocator {
     ($capacity:expr) => {
         Vec::with_capacity_in($capacity, A::default())
-    }
+    };
 }

@@ -1,8 +1,9 @@
 use super::*;
-use crate::cuda_bindings::{GpuResult};
+use crate::cuda_bindings::GpuResult;
 use bellman::plonk::better_better_cs::setup::VerificationKey;
 use bellman::plonk::polynomials::Polynomial;
 use bit_vec::BitVec;
+// use franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
 use gpu_ffi::bc_event;
 
 use std::io::{Read, Write};
@@ -30,29 +31,28 @@ cfg_if! {
         pub struct AsyncSetup<A: Allocator = CudaAllocator> {
             pub gate_setup_monomials: [AsyncVec<Fr, A>; NUM_GATE_SETUP_POLYS],
             pub gate_selectors_bitvecs: [BitVec; NUM_SELECTOR_POLYS],
-        
+
             pub lookup_selector_bitvec: BitVec,
             pub lookup_tables_values: [AsyncVec<Fr, A>; NUM_LOOKUP_TABLE_POLYS], // Could have smaller size
             pub lookup_table_type_monomial: AsyncVec<Fr, A>,
         }
-        
+
         unsafe impl<A: Allocator + Default> Send for AsyncSetup<A> {}
         unsafe impl<A: Allocator + Default> Sync for AsyncSetup<A> {}
     }else{
         pub struct AsyncSetup{
             pub gate_setup_monomials: [AsyncVec<Fr>; NUM_GATE_SETUP_POLYS],
             pub gate_selectors_bitvecs: [BitVec; NUM_SELECTOR_POLYS],
-        
+
             pub lookup_selector_bitvec: BitVec,
             pub lookup_tables_values: [AsyncVec<Fr>; NUM_LOOKUP_TABLE_POLYS], // Could have smaller size
             pub lookup_table_type_monomial: AsyncVec<Fr>,
         }
-        
+
         unsafe impl Send for AsyncSetup {}
         unsafe impl Sync for AsyncSetup {}
-    }    
+    }
 }
-
 
 macro_rules! impl_async_setup {
     (impl AsyncSetup $inherent:tt) => {
@@ -244,7 +244,7 @@ impl_async_setup! {
             MC: ManagerConfigs,
         >(
             &mut self,
-            worker: &Worker,            
+            worker: &Worker,
             assembly: &DefaultAssembly<S>,
             manager: &mut DeviceMemoryManager<Fr, MC>,
         ) -> Result<(), ProvingError> {
@@ -253,6 +253,7 @@ impl_async_setup! {
 
             let known_gates_list = &assembly.sorted_gates;
 
+            // FIXME:
             // assert_eq!(known_gates_list, &vec![
             //     SelectorOptimizedWidth4MainGateWithDNext::default().into_internal(),
             //     Rescue5CustomGate::default().into_internal(),
@@ -302,6 +303,7 @@ impl_async_setup! {
             assert_eq!(table_tails.len(), 4);
 
             let tails_len = table_tails[0].len();
+            dbg!(tails_len);
 
             let size = self.lookup_tables_values[0].len();
             assert!(size >= tails_len);
@@ -387,7 +389,6 @@ fn read_u64<R: Read>(reader: &mut R) -> std::io::Result<u64> {
 
 use bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
 use bellman::plonk::better_cs::generator::make_non_residues;
-
 
 pub fn compute_vk_from_assembly<
     C: Circuit<Bn256>,
@@ -548,10 +549,7 @@ pub fn copy_permutations_to_device_from_assembly<
     Ok(())
 }
 
-pub fn upload_t_poly_parts_from_assembly<
-    S: SynthesisMode,
-    MC: ManagerConfigs,
->(
+pub fn upload_t_poly_parts_from_assembly<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,

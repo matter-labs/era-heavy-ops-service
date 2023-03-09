@@ -4,11 +4,12 @@ use super::*;
 
 pub fn commit_point_as_xy<E: Engine, T: Transcript<E::Fr>>(
     transcript: &mut T,
-    point: &E::G1Affine
+    point: &E::G1Affine,
 ) {
-    use bellman::pairing::CurveAffine;
     use bellman::pairing::ff::Field;
+    use bellman::pairing::CurveAffine;
 
+    // if point.is_zero() {
     if bellman::pairing::CurveAffine::is_zero(point) {
         transcript.commit_fe(&E::Fq::zero());
         transcript.commit_fe(&E::Fq::zero());

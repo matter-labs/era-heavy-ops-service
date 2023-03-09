@@ -1,14 +1,10 @@
 use super::*;
-use crate::cuda_bindings::{DeviceBuf, Operation, GpuError};
+use crate::cuda_bindings::{DeviceBuf, GpuError, Operation};
 
 impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
-    pub fn set_values(
-        &mut self,
-        id: PolyId,
-        form: PolyForm,
-        value: Fr,
-    ) -> Result<(), GpuError> {
-        let idx = self.get_slot_idx(id, form)
+    pub fn set_values(&mut self, id: PolyId, form: PolyForm, value: Fr) -> Result<(), GpuError> {
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -17,7 +13,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 None,
                 Some(value),
                 0..MC::SLOT_SIZE,
-                Operation::SetValue
+                Operation::SetValue,
             )?;
         }
 
@@ -32,7 +28,8 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         range: Range<usize>,
     ) -> Result<(), GpuError> {
         assert!(range.len() > 0);
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -51,7 +48,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 None,
                 Some(value),
                 start..end,
-                Operation::SetValue
+                Operation::SetValue,
             )?;
         }
 
@@ -65,7 +62,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     ) -> Result<(), GpuError> {
         self.new_empty_slot(id, form);
         let idx = self.get_slot_idx(id, form).unwrap();
-        
+
         match form {
             PolyForm::Monomial => {
                 self.set_values(id, form, Fr::one())?;
@@ -75,7 +72,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                     None,
                     Some(Fr::one()),
                     1..2,
-                    Operation::SetValue
+                    Operation::SetValue,
                 )?;
             }
             PolyForm::Values => {
@@ -108,7 +105,8 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         match form {
             PolyForm::Values => {
                 self.new_empty_slot(id, form);
-                let idx = self.get_slot_idx(id, form)
+                let idx = self
+                    .get_slot_idx(id, form)
                     .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
                 self.set_values(id, form, Fr::zero())?;
@@ -121,15 +119,13 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                     None,
                     Some(Fr::one()),
                     point..(point + 1),
-                    Operation::SetValue
+                    Operation::SetValue,
                 )?;
-            },
+            }
             PolyForm::Monomial => {
                 self.new_empty_slot(id, form);
 
-                let x = Fr::from_str(
-                        &MC::FULL_SLOT_SIZE.to_string()
-                    )
+                let x = Fr::from_str(&MC::FULL_SLOT_SIZE.to_string())
                     .unwrap()
                     .inverse()
                     .unwrap();
@@ -140,14 +136,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                     .inverse()
                     .unwrap();
 
-                self.distribute_omega_powers(
-                    id,
-                    form,
-                    MC::FULL_SLOT_SIZE_LOG,
-                    0,
-                    point,
-                    true
-                )?;
+                self.distribute_omega_powers(id, form, MC::FULL_SLOT_SIZE_LOG, 0, point, true)?;
             }
             PolyForm::LDE(i) => {
                 self.create_lagrange_poly_in_free_slot(id, PolyForm::Monomial, point)?;
@@ -181,20 +170,24 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         Ok(())
     }
 
-    pub fn bitreverse(&mut self, id: PolyId, form: PolyForm, device_id: usize,) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
-            .expect(&format!("No such polynomial in such form: {:?} {:?}", id, form));
+    pub fn bitreverse(&mut self, id: PolyId, form: PolyForm, device_id: usize) -> GpuResult<()> {
+        let idx = self.get_slot_idx(id, form).expect(&format!(
+            "No such polynomial in such form: {:?} {:?}",
+            id, form
+        ));
 
-        let big_slot_idx = self.get_free_big_slot_idx(MC::NUM_GPUS).expect("there is no N free slots in a raw");
+        let big_slot_idx = self
+            .get_free_big_slot_idx(MC::NUM_GPUS)
+            .expect("there is no N free slots in a raw");
 
         for i in 0..MC::NUM_GPUS {
             let (slot, big_slot) = get_two_mut(&mut self.slots, idx, big_slot_idx + i);
 
             slot.0[i].async_copy_to_device(
-                &mut self.ctx[device_id], 
-                &mut big_slot.0[device_id], 
-                0..MC::SLOT_SIZE, 
-                0..MC::SLOT_SIZE
+                &mut self.ctx[device_id],
+                &mut big_slot.0[device_id],
+                0..MC::SLOT_SIZE,
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -212,10 +205,10 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             let (slot, big_slot) = get_two_mut(&mut self.slots, idx, big_slot_idx + i);
 
             big_slot.0[device_id].async_copy_to_device(
-                &mut self.ctx[device_id], 
-                &mut slot.0[i], 
-                0..MC::SLOT_SIZE, 
-                0..MC::SLOT_SIZE
+                &mut self.ctx[device_id],
+                &mut slot.0[i],
+                0..MC::SLOT_SIZE,
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -225,8 +218,10 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn multigpu_bitreverse(&mut self, id: PolyId, form: PolyForm) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
-            .expect(&format!("No such polynomial in such form: {:?} {:?}", id, form));
+        let idx = self.get_slot_idx(id, form).expect(&format!(
+            "No such polynomial in such form: {:?} {:?}",
+            id, form
+        ));
 
         DeviceBuf::multigpu_bitreverse(&mut self.slots[idx].0, &mut self.ctx)?;
 
@@ -236,21 +231,21 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn evaluate_at(&mut self, id: PolyId, base: Fr) -> Result<EvaluationHandle, GpuError> {
-        let idx = self.get_slot_idx(id, PolyForm::Monomial)
+        let idx = self
+            .get_slot_idx(id, PolyForm::Monomial)
             .expect(&format!("No such polynomial in monomial form: {:?}", id));
 
         let mut res_buffers = vec![];
         for device_id in 0..MC::NUM_GPUS {
-            res_buffers.push(
-                self.slots[idx].0[device_id].evaluate_at(
-                    &mut self.ctx[device_id],
-                    base
-                )?
-            );
+            res_buffers
+                .push(self.slots[idx].0[device_id].evaluate_at(&mut self.ctx[device_id], base)?);
         }
         let base_pow = base.pow([MC::SLOT_SIZE as u64]);
 
-        Ok(EvaluationHandle::from_buffers_and_base_pow(res_buffers, base_pow))
+        Ok(EvaluationHandle::from_buffers_and_base_pow(
+            res_buffers,
+            base_pow,
+        ))
     }
 }
 

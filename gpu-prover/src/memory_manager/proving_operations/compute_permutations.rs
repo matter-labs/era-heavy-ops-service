@@ -1,9 +1,6 @@
 use super::*;
 
-pub fn compute_permutation_polynomials<
-    S: SynthesisMode,
-    MC: ManagerConfigs,
->(
+pub fn compute_permutation_polynomials<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -29,7 +26,7 @@ pub fn compute_permutation_polynomials<
     let (mut permutations, mut variables, mut non_residues) =
         create_buffers_for_computing_assigments(manager, device_id)?;
 
-    copy_variables(manager, assembly, worker, &mut variables, device_id)?;    
+    copy_variables(manager, assembly, worker, &mut variables, device_id)?;
 
     compute_permutation_polynomials_on_device(
         &mut manager.ctx[ctx_id],
@@ -116,10 +113,7 @@ fn create_buffers_for_computing_assigments<MC: ManagerConfigs>(
     Ok((permutations, variables, non_residues))
 }
 
-pub(crate) fn copy_variables<
-    S: SynthesisMode,
-    MC: ManagerConfigs,
->(
+pub(crate) fn copy_variables<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -171,9 +165,7 @@ pub(crate) fn copy_variables<
     Ok(())
 }
 
-fn copy_variables_to_buffer<
-    S: SynthesisMode,
->(
+fn copy_variables_to_buffer<S: SynthesisMode>(
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
     buffer: &mut [u32],
@@ -272,7 +264,7 @@ fn final_copying_to_slots<MC: ManagerConfigs>(
     exec_device_id: usize,
 ) -> GpuResult<()> {
     let exec_ctx_id = manager.get_ctx_id_by_device_id(exec_device_id);
-    
+
     for poly_idx in 0..4 {
         for ctx_id in 0..MC::NUM_GPUS {
             let slot_idx = manager

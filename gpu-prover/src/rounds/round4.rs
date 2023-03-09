@@ -24,7 +24,12 @@ fn make_lin_comb_of_t_poly<MC: ManagerConfigs>(
     z: Fr,
 ) -> Result<(), ProvingError> {
     for i in 1..4 {
-        manager.add_assign_scaled(PolyId::TPart(0), PolyId::TPart(i), PolyForm::Monomial, z.pow([(i * MC::FULL_SLOT_SIZE) as u64]))?;
+        manager.add_assign_scaled(
+            PolyId::TPart(0),
+            PolyId::TPart(i),
+            PolyForm::Monomial,
+            z.pow([(i * MC::FULL_SLOT_SIZE) as u64]),
+        )?;
         manager.free_slot(PolyId::TPart(i), PolyForm::Monomial);
     }
     Ok(())
@@ -60,14 +65,11 @@ fn schedule_evaluation<MC: ManagerConfigs>(
     ];
 
     for (i, (id, dilation)) in polys.iter().enumerate() {
+        // let device_id = i % NUM_GPUS;
         if *dilation == 0 {
-            handles.push(
-                manager.evaluate_at(*id, z)?
-            )
+            handles.push(manager.evaluate_at(*id, z)?)
         } else {
-            handles.push(
-                manager.evaluate_at(*id, zw)?
-            )
+            handles.push(manager.evaluate_at(*id, zw)?)
         }
     }
 
@@ -115,13 +117,21 @@ fn compute_linearization_poly<C: Circuit<Bn256>, S: SynthesisMode, MC: ManagerCo
     constants: &ProverConstants<Fr>,
 ) -> Result<(), ProvingError> {
     compute_main_gate_contribution_in_linearization_poly::<_, S, _>(manager, proof)?;
-    compute_custom_gate_contribution_in_linearization_poly::<_, S, _>(manager, proof, constants.alpha[1])?;
+    compute_custom_gate_contribution_in_linearization_poly::<_, S, _>(
+        manager,
+        proof,
+        constants.alpha[1],
+    )?;
     compute_perm_arg_contribution_in_linearization_poly(manager, proof, constants)?;
     compute_lookup_arg_contribution_in_linearization_poly(manager, proof, constants)?;
     Ok(())
 }
 
-fn compute_main_gate_contribution_in_linearization_poly<C: Circuit<Bn256>, S: SynthesisMode, MC: ManagerConfigs>(
+fn compute_main_gate_contribution_in_linearization_poly<
+    C: Circuit<Bn256>,
+    S: SynthesisMode,
+    MC: ManagerConfigs,
+>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     proof: &mut Proof<Bn256, C>,
 ) -> Result<(), ProvingError> {
@@ -132,24 +142,57 @@ fn compute_main_gate_contribution_in_linearization_poly<C: Circuit<Bn256>, S: Sy
     };
 
     manager.rename_slot(PolyId::QConst, PolyId::R, poly_form);
-    manager.add_assign_scaled(PolyId::R, PolyId::QA, poly_form, proof.state_polys_openings_at_z[0])?;
-    manager.add_assign_scaled(PolyId::R, PolyId::QB, poly_form, proof.state_polys_openings_at_z[1])?;
-    manager.add_assign_scaled(PolyId::R, PolyId::QC, poly_form, proof.state_polys_openings_at_z[2])?;
-    manager.add_assign_scaled(PolyId::R, PolyId::QD, poly_form, proof.state_polys_openings_at_z[3])?;
+    manager.add_assign_scaled(
+        PolyId::R,
+        PolyId::QA,
+        poly_form,
+        proof.state_polys_openings_at_z[0],
+    )?;
+    manager.add_assign_scaled(
+        PolyId::R,
+        PolyId::QB,
+        poly_form,
+        proof.state_polys_openings_at_z[1],
+    )?;
+    manager.add_assign_scaled(
+        PolyId::R,
+        PolyId::QC,
+        poly_form,
+        proof.state_polys_openings_at_z[2],
+    )?;
+    manager.add_assign_scaled(
+        PolyId::R,
+        PolyId::QD,
+        poly_form,
+        proof.state_polys_openings_at_z[3],
+    )?;
     let mut ab_at_z = proof.state_polys_openings_at_z[0];
     ab_at_z.mul_assign(&proof.state_polys_openings_at_z[1]);
     manager.add_assign_scaled(PolyId::R, PolyId::QMab, poly_form, ab_at_z)?;
     let mut ac_at_z = proof.state_polys_openings_at_z[0];
     ac_at_z.mul_assign(&proof.state_polys_openings_at_z[2]);
     manager.add_assign_scaled(PolyId::R, PolyId::QMac, poly_form, ac_at_z)?;
-    manager.add_assign_scaled(PolyId::R, PolyId::QDNext, poly_form, proof.state_polys_openings_at_dilations[0].2)?;
+    manager.add_assign_scaled(
+        PolyId::R,
+        PolyId::QDNext,
+        poly_form,
+        proof.state_polys_openings_at_dilations[0].2,
+    )?;
 
-    manager.mul_constant(PolyId::R, poly_form, proof.gate_selectors_openings_at_z[0].1)?;
+    manager.mul_constant(
+        PolyId::R,
+        poly_form,
+        proof.gate_selectors_openings_at_z[0].1,
+    )?;
 
     Ok(())
 }
 
-fn compute_custom_gate_contribution_in_linearization_poly<C: Circuit<Bn256>, S: SynthesisMode, MC: ManagerConfigs>(
+fn compute_custom_gate_contribution_in_linearization_poly<
+    C: Circuit<Bn256>,
+    S: SynthesisMode,
+    MC: ManagerConfigs,
+>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     proof: &mut Proof<Bn256, C>,
     alpha: Fr,
@@ -177,12 +220,16 @@ fn compute_custom_gate_contribution_in_linearization_poly<C: Circuit<Bn256>, S: 
     coeff.add_assign(&tmp);
     coeff.mul_assign(&alpha);
 
-
     let poly_form = if S::PRODUCE_SETUP {
         manager.add_assign_scaled(PolyId::R, PolyId::QCustomSelector, PolyForm::Values, coeff)?;
         manager.multigpu_ifft(PolyId::R, false)?;
     } else {
-        manager.add_assign_scaled(PolyId::R, PolyId::QCustomSelector, PolyForm::Monomial, coeff)?;
+        manager.add_assign_scaled(
+            PolyId::R,
+            PolyId::QCustomSelector,
+            PolyForm::Monomial,
+            coeff,
+        )?;
     };
 
     Ok(())
@@ -368,10 +415,7 @@ fn second_coeff_for_lookup_arg_in_linearization_poly<C: Circuit<Bn256>, MC: Mana
     coeff
 }
 
-fn count_f_poly_at_z<C: Circuit<Bn256>>(
-    proof: &mut Proof<Bn256, C>,
-    eta: Fr,
-) -> Fr {
+fn count_f_poly_at_z<C: Circuit<Bn256>>(proof: &mut Proof<Bn256, C>, eta: Fr) -> Fr {
     let (a, b, c, q_table_type, q_lookup_selector) = (
         proof.state_polys_openings_at_z[0],
         proof.state_polys_openings_at_z[1],
@@ -398,7 +442,7 @@ fn count_f_poly_at_z<C: Circuit<Bn256>>(
     f
 }
 
-fn lagrange_last_poly_at_z<MC: ManagerConfigs>(constants: &ProverConstants<Fr>,) -> Fr {
+fn lagrange_last_poly_at_z<MC: ManagerConfigs>(constants: &ProverConstants<Fr>) -> Fr {
     let w_last = constants.omega.pow(&[(MC::FULL_SLOT_SIZE - 1) as u64]);
 
     let mut num = constants.z.pow(&[MC::FULL_SLOT_SIZE as u64]);
@@ -431,7 +475,7 @@ fn evaluate_linearization_at_z<C: Circuit<Bn256>, T: Transcript<Fr>, MC: Manager
 }
 
 pub fn free_useless_round_4_slots<S: SynthesisMode, MC: ManagerConfigs>(
-    manager: &mut DeviceMemoryManager<Fr, MC>
+    manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> Result<(), ProvingError> {
     let poly_ids = [
         PolyId::QCustomSelector,

@@ -1,11 +1,6 @@
 use super::*;
 
-pub fn round3<
-    S: SynthesisMode,
-    C: Circuit<Bn256>,
-    T: Transcript<Fr>,
-    MC: ManagerConfigs,
->(
+pub fn round3<S: SynthesisMode, C: Circuit<Bn256>, T: Transcript<Fr>, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -16,40 +11,19 @@ pub fn round3<
 ) -> Result<(), ProvingError> {
     get_round_3_challenges(constants, transcript);
 
-    compute_main_custom_and_permutation_gates(
-        manager,
-        assembly,
-        worker,
-        constants,
-        setup,
-    )?;
+    compute_main_custom_and_permutation_gates(manager, assembly, worker, constants, setup)?;
 
-    compute_lookup_gate(
-        manager,
-        assembly,
-        worker,
-        constants,
-        setup,
-    )?;
+    compute_lookup_gate(manager, assembly, worker, constants, setup)?;
 
-    let poly_ids = [
-        PolyId::SShifted,
-        PolyId::TShifted,
-        PolyId::ZLookupShifted,
-    ];
+    let poly_ids = [PolyId::SShifted, PolyId::TShifted, PolyId::ZLookupShifted];
 
     for id in poly_ids.iter() {
         manager.free_slot(*id, PolyForm::Monomial);
-    }   
+    }
 
     let msm_handles = compute_quotient_monomial_and_schedule_commitments(manager)?;
 
-    schedule_monomial_copyings_for_last_rounds(
-        manager,
-        assembly,
-        setup,
-        worker,
-    )?;
+    schedule_monomial_copyings_for_last_rounds(manager, assembly, setup, worker)?;
 
     for (i, commitment) in msm_handles.into_iter().enumerate() {
         let tpart_commitment = commitment.get_result::<MC>(manager)?;
@@ -60,9 +34,7 @@ pub fn round3<
     Ok(())
 }
 
-pub fn get_round_3_challenges<
-    T: Transcript<Fr>
->(
+pub fn get_round_3_challenges<T: Transcript<Fr>>(
     constants: &mut ProverConstants<Fr>,
     transcript: &mut T,
 ) {
@@ -77,10 +49,7 @@ pub fn get_round_3_challenges<
     }
 }
 
-pub fn compute_main_custom_and_permutation_gates<
-    S: SynthesisMode, 
-    MC: ManagerConfigs
->(
+pub fn compute_main_custom_and_permutation_gates<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -94,11 +63,7 @@ pub fn compute_main_custom_and_permutation_gates<
     for coset_idx in 0..LDE_FACTOR {
         compute_shifted_polys_for_main_gate(manager, coset_idx)?;
 
-        copy_polynomials_for_main_custom_and_permutation_gates::<S, _>(
-            manager,
-            setup,
-            coset_idx
-        )?;
+        copy_polynomials_for_main_custom_and_permutation_gates::<S, _>(manager, setup, coset_idx)?;
 
         compute_main_gate(manager, coset_idx)?;
         compute_custom_gate(manager, constants, coset_idx)?;
@@ -109,7 +74,6 @@ pub fn compute_main_custom_and_permutation_gates<
     }
 
     for coset_idx in 0..LDE_FACTOR {
-       
         for i in 0..4 {
             manager.multigpu_coset_fft(PolyId::Sigma(i), coset_idx)?;
         }
@@ -119,8 +83,19 @@ pub fn compute_main_custom_and_permutation_gates<
             manager.add_constant(*id, PolyForm::LDE(coset_idx), constants.gamma)?;
         }
 
-        manager.copy_from_device_to_free_device(PolyId::ZPerm, PolyId::ZPermShifted, PolyForm::Monomial)?;
-        manager.distribute_omega_powers(PolyId::ZPermShifted, PolyForm::Monomial, MC::FULL_SLOT_SIZE_LOG, 0, 1, false)?;
+        manager.copy_from_device_to_free_device(
+            PolyId::ZPerm,
+            PolyId::ZPermShifted,
+            PolyForm::Monomial,
+        )?;
+        manager.distribute_omega_powers(
+            PolyId::ZPermShifted,
+            PolyForm::Monomial,
+            MC::FULL_SLOT_SIZE_LOG,
+            0,
+            1,
+            false,
+        )?;
 
         manager.multigpu_coset_fft(PolyId::ZPermShifted, coset_idx)?;
         manager.multigpu_coset_fft_to_free_slot(PolyId::ZPerm, coset_idx)?;
@@ -134,38 +109,41 @@ pub fn compute_main_custom_and_permutation_gates<
     Ok(())
 }
 
-pub fn compute_gate_selector_monomials<
-    S: SynthesisMode, 
-    MC: ManagerConfigs
->(
+pub fn compute_gate_selector_monomials<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
 ) -> Result<(), ProvingError> {
-
-    for (i, poly_id) in [PolyId::QMainSelector, PolyId::QCustomSelector].into_iter().enumerate() {
+    for (i, poly_id) in [PolyId::QMainSelector, PolyId::QCustomSelector]
+        .into_iter()
+        .enumerate()
+    {
         get_gate_selector_values_from_assembly(manager, assembly, worker, i)?;
         manager.multigpu_ifft(poly_id, false)?;
     }
+    // manager.free_host_slot(PolyId::QMainSelector, PolyForm::Values);
+    // manager.free_host_slot(PolyId::QCustomSelector, PolyForm::Values);
 
     Ok(())
 }
 
 pub fn compute_shifted_polys_for_main_gate<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
-    coset_idx: usize
+    coset_idx: usize,
 ) -> Result<(), ProvingError> {
     manager.copy_from_device_to_free_device(PolyId::D, PolyId::DNext, PolyForm::Monomial)?;
-    manager.distribute_omega_powers(PolyId::DNext, PolyForm::Monomial, MC::FULL_SLOT_SIZE_LOG, 0, 1, false)?;
+    manager.distribute_omega_powers(
+        PolyId::DNext,
+        PolyForm::Monomial,
+        MC::FULL_SLOT_SIZE_LOG,
+        0,
+        1,
+        false,
+    )?;
 
-    manager.multigpu_coset_fft(PolyId::DNext, coset_idx)?;
+    manager.multigpu_coset_fft(PolyId::DNext, coset_idx)?; //TODO save Monomial if there's enough space
 
-    let poly_ids = [
-        PolyId::A,
-        PolyId::B,
-        PolyId::C,
-        PolyId::D,
-    ];
+    let poly_ids = [PolyId::A, PolyId::B, PolyId::C, PolyId::D];
 
     manager.multigpu_coset_fft_to_free_slot(PolyId::PI, coset_idx)?;
 
@@ -182,7 +160,7 @@ pub fn copy_polynomials_for_main_custom_and_permutation_gates<
 >(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     setup: &mut AsyncSetup,
-    coset_idx: usize
+    coset_idx: usize,
 ) -> Result<(), ProvingError> {
     let poly_ids = [
         PolyId::QA,
@@ -197,7 +175,9 @@ pub fn copy_polynomials_for_main_custom_and_permutation_gates<
     if S::PRODUCE_SETUP && coset_idx == 0 {
         copy_monomials_for_permutation_gates_and_compute_ldes(manager, poly_ids, coset_idx)?;
     } else if coset_idx == 0 {
-        copy_monomials_from_setup_for_main_custom_and_permutation_gates(manager, setup, poly_ids, coset_idx)?;
+        copy_monomials_from_setup_for_main_custom_and_permutation_gates(
+            manager, setup, poly_ids, coset_idx,
+        )?;
     } else {
         copy_monomials_for_permutation_gates_and_compute_ldes(manager, poly_ids, coset_idx)?;
     }
@@ -205,9 +185,7 @@ pub fn copy_polynomials_for_main_custom_and_permutation_gates<
     Ok(())
 }
 
-pub fn copy_monomials_from_setup_for_main_custom_and_permutation_gates<
-    MC: ManagerConfigs,
->(
+pub fn copy_monomials_from_setup_for_main_custom_and_permutation_gates<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     setup: &mut AsyncSetup,
     poly_ids: [PolyId; 7],
@@ -215,8 +193,8 @@ pub fn copy_monomials_from_setup_for_main_custom_and_permutation_gates<
 ) -> Result<(), ProvingError> {
     for (i, id) in poly_ids[..6].iter().enumerate() {
         manager.async_copy_to_device(
-            &mut setup.gate_setup_monomials[i], 
-            *id, 
+            &mut setup.gate_setup_monomials[i],
+            *id,
             PolyForm::Monomial,
             0..MC::FULL_SLOT_SIZE,
         )?;
@@ -224,19 +202,42 @@ pub fn copy_monomials_from_setup_for_main_custom_and_permutation_gates<
     }
 
     manager.async_copy_to_device(
-        &mut setup.gate_setup_monomials[7], 
-        PolyId::QDNext, 
+        &mut setup.gate_setup_monomials[7],
+        PolyId::QDNext,
         PolyForm::Monomial,
         0..MC::FULL_SLOT_SIZE,
     )?;
     manager.multigpu_coset_fft(PolyId::QDNext, coset_idx)?;
 
-    compute_values_from_bitvec(manager, &setup.gate_selectors_bitvecs[0], PolyId::QMainSelector);
-    compute_values_from_bitvec(manager, &setup.gate_selectors_bitvecs[1], PolyId::QCustomSelector);
+    // manager.async_copy_to_device(
+    //     &mut setup.gate_selectors_monomials[0],
+    //     PolyId::QMainSelector,
+    //     PolyForm::Monomial,
+    //     0..MC::FULL_SLOT_SIZE,
+    // )?;
+    // manager.async_copy_to_device(
+    //     &mut setup.gate_selectors_monomials[1],
+    //     PolyId::QCustomSelector,
+    //     PolyForm::Monomial,
+    //     0..MC::FULL_SLOT_SIZE,
+    // )?;
+    compute_values_from_bitvec(
+        manager,
+        &setup.gate_selectors_bitvecs[0],
+        PolyId::QMainSelector,
+    );
+    compute_values_from_bitvec(
+        manager,
+        &setup.gate_selectors_bitvecs[1],
+        PolyId::QCustomSelector,
+    );
     manager.multigpu_ifft(PolyId::QMainSelector, false);
     manager.multigpu_ifft(PolyId::QCustomSelector, false);
 
-    for (i, id) in [PolyId::QMainSelector, PolyId::QCustomSelector].iter().enumerate() {
+    for (i, id) in [PolyId::QMainSelector, PolyId::QCustomSelector]
+        .iter()
+        .enumerate()
+    {
         manager.multigpu_coset_fft(*id, coset_idx)?;
     }
 
@@ -252,7 +253,10 @@ pub fn copy_monomials_for_permutation_gates_and_compute_ldes<MC: ManagerConfigs>
         manager.multigpu_coset_fft(poly_ids[i], coset_idx)?;
     }
 
-    for (i, id) in [PolyId::QMainSelector, PolyId::QCustomSelector].iter().enumerate() {
+    for (i, id) in [PolyId::QMainSelector, PolyId::QCustomSelector]
+        .iter()
+        .enumerate()
+    {
         manager.multigpu_coset_fft(*id, coset_idx)?;
     }
 
@@ -263,33 +267,67 @@ pub fn compute_main_gate<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     coset_idx: usize,
 ) -> Result<(), ProvingError> {
-    manager.rename_slot(PolyId::PI, PolyId::Custom("main_gate"), PolyForm::LDE(coset_idx));
+    manager.rename_slot(
+        PolyId::PI,
+        PolyId::Custom("main_gate"),
+        PolyForm::LDE(coset_idx),
+    );
 
     manager.new_empty_slot(PolyId::Tmp, PolyForm::LDE(coset_idx));
 
     manager.copy_from_device_to_device(PolyId::QMab, PolyId::Tmp, PolyForm::LDE(coset_idx));
     manager.mul_assign(PolyId::Tmp, PolyId::A, PolyForm::LDE(coset_idx))?;
     manager.mul_assign(PolyId::Tmp, PolyId::B, PolyForm::LDE(coset_idx))?;
-    manager.add_assign(PolyId::Custom("main_gate"), PolyId::Tmp, PolyForm::LDE(coset_idx))?;
+    manager.add_assign(
+        PolyId::Custom("main_gate"),
+        PolyId::Tmp,
+        PolyForm::LDE(coset_idx),
+    )?;
 
     manager.copy_from_device_to_device(PolyId::QMac, PolyId::Tmp, PolyForm::LDE(coset_idx));
     manager.mul_assign(PolyId::Tmp, PolyId::A, PolyForm::LDE(coset_idx))?;
     manager.mul_assign(PolyId::Tmp, PolyId::C, PolyForm::LDE(coset_idx))?;
-    manager.add_assign(PolyId::Custom("main_gate"), PolyId::Tmp, PolyForm::LDE(coset_idx))?;
+    manager.add_assign(
+        PolyId::Custom("main_gate"),
+        PolyId::Tmp,
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    for (id, q_id) in [PolyId::A, PolyId::B, PolyId::C, PolyId::D, PolyId::DNext].iter()
-        .zip([PolyId::QA, PolyId::QB, PolyId::QC, PolyId::QD, PolyId::QDNext].iter())
-    {   
+    for (id, q_id) in [PolyId::A, PolyId::B, PolyId::C, PolyId::D, PolyId::DNext]
+        .iter()
+        .zip(
+            [
+                PolyId::QA,
+                PolyId::QB,
+                PolyId::QC,
+                PolyId::QD,
+                PolyId::QDNext,
+            ]
+            .iter(),
+        )
+    {
         manager.copy_from_device_to_device(*q_id, PolyId::Tmp, PolyForm::LDE(coset_idx));
         manager.mul_assign(PolyId::Tmp, *id, PolyForm::LDE(coset_idx))?;
-        manager.add_assign(PolyId::Custom("main_gate"), PolyId::Tmp, PolyForm::LDE(coset_idx))?;
+        manager.add_assign(
+            PolyId::Custom("main_gate"),
+            PolyId::Tmp,
+            PolyForm::LDE(coset_idx),
+        )?;
     }
 
     manager.free_slot(PolyId::Tmp, PolyForm::LDE(coset_idx));
 
-    manager.mul_assign(PolyId::Custom("main_gate"), PolyId::QMainSelector, PolyForm::LDE(coset_idx))?;
+    manager.mul_assign(
+        PolyId::Custom("main_gate"),
+        PolyId::QMainSelector,
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    manager.rename_slot(PolyId::Custom("main_gate"), PolyId::TPart(coset_idx), PolyForm::LDE(coset_idx));
+    manager.rename_slot(
+        PolyId::Custom("main_gate"),
+        PolyId::TPart(coset_idx),
+        PolyForm::LDE(coset_idx),
+    );
 
     let poly_ids = [
         PolyId::QMab,
@@ -319,27 +357,69 @@ pub fn compute_custom_gate<MC: ManagerConfigs>(
     constants: &ProverConstants<Fr>,
     coset_idx: usize,
 ) -> Result<(), ProvingError> {
-    manager.copy_from_device_to_free_device(PolyId::A, PolyId::Custom("custom_gate"), PolyForm::LDE(coset_idx))?;
-    manager.mul_assign(PolyId::Custom("custom_gate"), PolyId::A, PolyForm::LDE(coset_idx))?;
-    manager.sub_assign(PolyId::Custom("custom_gate"), PolyId::B, PolyForm::LDE(coset_idx))?;
-    manager.mul_constant(PolyId::Custom("custom_gate"), PolyForm::LDE(coset_idx), constants.alpha[1])?;
+    manager.copy_from_device_to_free_device(
+        PolyId::A,
+        PolyId::Custom("custom_gate"),
+        PolyForm::LDE(coset_idx),
+    )?;
+    manager.mul_assign(
+        PolyId::Custom("custom_gate"),
+        PolyId::A,
+        PolyForm::LDE(coset_idx),
+    )?;
+    manager.sub_assign(
+        PolyId::Custom("custom_gate"),
+        PolyId::B,
+        PolyForm::LDE(coset_idx),
+    )?;
+    manager.mul_constant(
+        PolyId::Custom("custom_gate"),
+        PolyForm::LDE(coset_idx),
+        constants.alpha[1],
+    )?;
 
-    manager.copy_from_device_to_free_device(PolyId::B, PolyId::Custom("tmp"), PolyForm::LDE(coset_idx))?;
+    manager.copy_from_device_to_free_device(
+        PolyId::B,
+        PolyId::Custom("tmp"),
+        PolyForm::LDE(coset_idx),
+    )?;
     manager.mul_assign(PolyId::Custom("tmp"), PolyId::B, PolyForm::LDE(coset_idx))?;
     manager.sub_assign(PolyId::Custom("tmp"), PolyId::C, PolyForm::LDE(coset_idx))?;
-    manager.add_assign_scaled(PolyId::Custom("custom_gate"), PolyId::Custom("tmp"), PolyForm::LDE(coset_idx), constants.alpha[2])?;
-    manager.free_slot(PolyId::Custom("tmp"),PolyForm::LDE(coset_idx));
+    manager.add_assign_scaled(
+        PolyId::Custom("custom_gate"),
+        PolyId::Custom("tmp"),
+        PolyForm::LDE(coset_idx),
+        constants.alpha[2],
+    )?;
+    manager.free_slot(PolyId::Custom("tmp"), PolyForm::LDE(coset_idx));
 
-    manager.copy_from_device_to_free_device(PolyId::A, PolyId::Custom("tmp"), PolyForm::LDE(coset_idx))?;
+    manager.copy_from_device_to_free_device(
+        PolyId::A,
+        PolyId::Custom("tmp"),
+        PolyForm::LDE(coset_idx),
+    )?;
     manager.mul_assign(PolyId::Custom("tmp"), PolyId::C, PolyForm::LDE(coset_idx))?;
     manager.sub_assign(PolyId::Custom("tmp"), PolyId::D, PolyForm::LDE(coset_idx))?;
-    manager.add_assign_scaled(PolyId::Custom("custom_gate"), PolyId::Custom("tmp"), PolyForm::LDE(coset_idx), constants.alpha[3])?;
-    manager.free_slot(PolyId::Custom("tmp"),PolyForm::LDE(coset_idx));
+    manager.add_assign_scaled(
+        PolyId::Custom("custom_gate"),
+        PolyId::Custom("tmp"),
+        PolyForm::LDE(coset_idx),
+        constants.alpha[3],
+    )?;
+    manager.free_slot(PolyId::Custom("tmp"), PolyForm::LDE(coset_idx));
 
-    manager.mul_assign(PolyId::Custom("custom_gate"), PolyId::QCustomSelector, PolyForm::LDE(coset_idx))?;
-    manager.add_assign(PolyId::TPart(coset_idx), PolyId::Custom("custom_gate"), PolyForm::LDE(coset_idx))?;
+    manager.mul_assign(
+        PolyId::Custom("custom_gate"),
+        PolyId::QCustomSelector,
+        PolyForm::LDE(coset_idx),
+    )?;
+    manager.add_assign(
+        PolyId::TPart(coset_idx),
+        PolyId::Custom("custom_gate"),
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    manager.free_slot(PolyId::Custom("custom_gate"),PolyForm::LDE(coset_idx));
+    manager.free_slot(PolyId::Custom("custom_gate"), PolyForm::LDE(coset_idx));
 
     if coset_idx < 3 {
         manager.multigpu_coset_ifft(PolyId::QCustomSelector, coset_idx);
@@ -358,22 +438,52 @@ pub fn compute_permutation_gate_0<MC: ManagerConfigs>(
     manager.create_x_poly_in_free_slot(PolyId::X, PolyForm::LDE(coset_idx))?;
     manager.mul_constant(PolyId::X, PolyForm::LDE(coset_idx), constants.beta)?;
 
-    manager.copy_from_device_to_free_device(PolyId::A, PolyId::Custom("permutation_gate"), PolyForm::LDE(coset_idx))?;
-    manager.add_assign(PolyId::Custom("permutation_gate"), PolyId::X, PolyForm::LDE(coset_idx))?;
+    manager.copy_from_device_to_free_device(
+        PolyId::A,
+        PolyId::Custom("permutation_gate"),
+        PolyForm::LDE(coset_idx),
+    )?;
+    manager.add_assign(
+        PolyId::Custom("permutation_gate"),
+        PolyId::X,
+        PolyForm::LDE(coset_idx),
+    )?;
 
     for (i, id) in [PolyId::B, PolyId::C, PolyId::D].iter().enumerate() {
-        manager.copy_from_device_to_free_device(*id, PolyId::Custom("tmp"), PolyForm::LDE(coset_idx))?;
-        manager.add_assign_scaled(PolyId::Custom("tmp"), PolyId::X, PolyForm::LDE(coset_idx), constants.non_residues[i])?;
-        manager.mul_assign(PolyId::Custom("permutation_gate"), PolyId::Custom("tmp"), PolyForm::LDE(coset_idx))?;
-        manager.free_slot(PolyId::Custom("tmp"),PolyForm::LDE(coset_idx));
+        manager.copy_from_device_to_free_device(
+            *id,
+            PolyId::Custom("tmp"),
+            PolyForm::LDE(coset_idx),
+        )?;
+        manager.add_assign_scaled(
+            PolyId::Custom("tmp"),
+            PolyId::X,
+            PolyForm::LDE(coset_idx),
+            constants.non_residues[i],
+        )?;
+        manager.mul_assign(
+            PolyId::Custom("permutation_gate"),
+            PolyId::Custom("tmp"),
+            PolyForm::LDE(coset_idx),
+        )?;
+        manager.free_slot(PolyId::Custom("tmp"), PolyForm::LDE(coset_idx));
     }
 
-    manager.mul_assign(PolyId::Custom("permutation_gate"), PolyId::ZPerm, PolyForm::LDE(coset_idx))?;
+    manager.mul_assign(
+        PolyId::Custom("permutation_gate"),
+        PolyId::ZPerm,
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    manager.add_assign_scaled(PolyId::TPart(coset_idx), PolyId::Custom("permutation_gate"), PolyForm::LDE(coset_idx), constants.alpha[4])?;
-    manager.free_slot(PolyId::Custom("permutation_gate"),PolyForm::LDE(coset_idx));
+    manager.add_assign_scaled(
+        PolyId::TPart(coset_idx),
+        PolyId::Custom("permutation_gate"),
+        PolyForm::LDE(coset_idx),
+        constants.alpha[4],
+    )?;
+    manager.free_slot(PolyId::Custom("permutation_gate"), PolyForm::LDE(coset_idx));
 
-    manager.free_slot(PolyId::X,PolyForm::LDE(coset_idx));
+    manager.free_slot(PolyId::X, PolyForm::LDE(coset_idx));
 
     Ok(())
 }
@@ -383,22 +493,53 @@ pub fn compute_permutation_gate_1<MC: ManagerConfigs>(
     constants: &ProverConstants<Fr>,
     coset_idx: usize,
 ) -> Result<(), ProvingError> {
-    manager.copy_from_device_to_free_device(PolyId::A, PolyId::Custom("permutation_gate"), PolyForm::LDE(coset_idx))?;
-    manager.add_assign_scaled(PolyId::Custom("permutation_gate"), PolyId::Sigma(0), PolyForm::LDE(coset_idx), constants.beta)?;
+    manager.copy_from_device_to_free_device(
+        PolyId::A,
+        PolyId::Custom("permutation_gate"),
+        PolyForm::LDE(coset_idx),
+    )?;
+    manager.add_assign_scaled(
+        PolyId::Custom("permutation_gate"),
+        PolyId::Sigma(0),
+        PolyForm::LDE(coset_idx),
+        constants.beta,
+    )?;
 
     for (i, id) in [PolyId::B, PolyId::C, PolyId::D].iter().enumerate() {
-        manager.copy_from_device_to_free_device(*id, PolyId::Custom("tmp"), PolyForm::LDE(coset_idx))?;
-        manager.add_assign_scaled(PolyId::Custom("tmp"), PolyId::Sigma(i+1), PolyForm::LDE(coset_idx), constants.beta)?;
-        manager.mul_assign(PolyId::Custom("permutation_gate"), PolyId::Custom("tmp"), PolyForm::LDE(coset_idx))?;
-        manager.free_slot(PolyId::Custom("tmp"),PolyForm::LDE(coset_idx));
+        manager.copy_from_device_to_free_device(
+            *id,
+            PolyId::Custom("tmp"),
+            PolyForm::LDE(coset_idx),
+        )?;
+        manager.add_assign_scaled(
+            PolyId::Custom("tmp"),
+            PolyId::Sigma(i + 1),
+            PolyForm::LDE(coset_idx),
+            constants.beta,
+        )?;
+        manager.mul_assign(
+            PolyId::Custom("permutation_gate"),
+            PolyId::Custom("tmp"),
+            PolyForm::LDE(coset_idx),
+        )?;
+        manager.free_slot(PolyId::Custom("tmp"), PolyForm::LDE(coset_idx));
     }
 
-    manager.mul_assign(PolyId::Custom("permutation_gate"), PolyId::ZPermShifted, PolyForm::LDE(coset_idx))?;
+    manager.mul_assign(
+        PolyId::Custom("permutation_gate"),
+        PolyId::ZPermShifted,
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    manager.sub_assign_scaled(PolyId::TPart(coset_idx), PolyId::Custom("permutation_gate"), PolyForm::LDE(coset_idx), constants.alpha[4])?;
-    manager.free_slot(PolyId::Custom("permutation_gate"),PolyForm::LDE(coset_idx));
+    manager.sub_assign_scaled(
+        PolyId::TPart(coset_idx),
+        PolyId::Custom("permutation_gate"),
+        PolyForm::LDE(coset_idx),
+        constants.alpha[4],
+    )?;
+    manager.free_slot(PolyId::Custom("permutation_gate"), PolyForm::LDE(coset_idx));
 
-    for i in 0..4 {   
+    for i in 0..4 {
         manager.multigpu_coset_ifft(PolyId::Sigma(i), coset_idx);
     }
 
@@ -406,8 +547,7 @@ pub fn compute_permutation_gate_1<MC: ManagerConfigs>(
         manager.free_slot(*id, PolyForm::LDE(coset_idx));
     }
 
-    manager.free_slot(PolyId::ZPermShifted,PolyForm::LDE(coset_idx));
-
+    manager.free_slot(PolyId::ZPermShifted, PolyForm::LDE(coset_idx));
 
     Ok(())
 }
@@ -417,11 +557,16 @@ pub fn compute_permutation_gate_2<MC: ManagerConfigs>(
     constants: &ProverConstants<Fr>,
     coset_idx: usize,
 ) -> Result<(), ProvingError> {
-    manager.create_lagrange_poly_in_free_slot(PolyId::L0, PolyForm::LDE(coset_idx), 0)?;
+    manager.create_lagrange_poly_in_free_slot(PolyId::L0, PolyForm::LDE(coset_idx), 0)?; //TODO create Monomial if there's enough space
     manager.sub_constant(PolyId::ZPerm, PolyForm::LDE(coset_idx), Fr::one())?;
     manager.mul_assign(PolyId::ZPerm, PolyId::L0, PolyForm::LDE(coset_idx))?;
 
-    manager.add_assign_scaled(PolyId::TPart(coset_idx), PolyId::ZPerm, PolyForm::LDE(coset_idx), constants.alpha[5])?;
+    manager.add_assign_scaled(
+        PolyId::TPart(coset_idx),
+        PolyId::ZPerm,
+        PolyForm::LDE(coset_idx),
+        constants.alpha[5],
+    )?;
 
     manager.free_slot(PolyId::L0, PolyForm::LDE(coset_idx));
     manager.free_slot(PolyId::ZPerm, PolyForm::LDE(coset_idx));
@@ -429,10 +574,7 @@ pub fn compute_permutation_gate_2<MC: ManagerConfigs>(
     Ok(())
 }
 
-pub fn compute_lookup_gate<
-    S: SynthesisMode,
-    MC: ManagerConfigs
->(
+pub fn compute_lookup_gate<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -450,23 +592,26 @@ pub fn compute_lookup_gate<
             PolyId::ZLookup,
             PolyId::TShifted,
         ];
-        
+
         for (i, id) in poly_ids.iter().enumerate() {
             manager.multigpu_coset_fft_to_free_slot(*id, coset_idx)?;
         }
-    
+
         manager.create_x_poly_in_free_slot(PolyId::X, PolyForm::LDE(coset_idx))?;
-        let omega_pow = domain_generator::<Fr>(MC::FULL_SLOT_SIZE)
-            .pow([(MC::FULL_SLOT_SIZE - 1) as u64]);
+        let omega_pow =
+            domain_generator::<Fr>(MC::FULL_SLOT_SIZE).pow([(MC::FULL_SLOT_SIZE - 1) as u64]);
         manager.sub_constant(PolyId::X, PolyForm::LDE(coset_idx), omega_pow)?;
 
         if S::PRODUCE_SETUP {
             if coset_idx == 0 {
                 get_lookup_selector_from_assembly(manager, assembly, worker)?;
                 manager.multigpu_ifft(PolyId::QLookupSelector, false)?;
-                manager.copy_from_device_to_host_pinned(PolyId::QLookupSelector, PolyForm::Monomial)?;
+                // manager.free_host_slot(PolyId::QLookupSelector, PolyForm::Values);
+                manager
+                    .copy_from_device_to_host_pinned(PolyId::QLookupSelector, PolyForm::Monomial)?;
             } else {
-                manager.copy_from_host_pinned_to_device(PolyId::QLookupSelector, PolyForm::Monomial)?;
+                manager
+                    .copy_from_host_pinned_to_device(PolyId::QLookupSelector, PolyForm::Monomial)?;
             }
 
             manager.multigpu_coset_fft(PolyId::QLookupSelector, coset_idx)?;
@@ -481,13 +626,22 @@ pub fn compute_lookup_gate<
 
             manager.multigpu_coset_fft(PolyId::QTableType, coset_idx)?;
         } else {
-            
-            compute_values_from_bitvec(manager, &setup.lookup_selector_bitvec, PolyId::QLookupSelector);
+            // manager.async_copy_to_device(
+            //     &mut setup.lookup_selector_monomial,
+            //     PolyId::QLookupSelector,
+            //     PolyForm::Monomial,
+            //     0..MC::FULL_SLOT_SIZE,
+            // )?;
+            compute_values_from_bitvec(
+                manager,
+                &setup.lookup_selector_bitvec,
+                PolyId::QLookupSelector,
+            );
             manager.multigpu_ifft(PolyId::QLookupSelector, false)?;
             manager.multigpu_coset_fft(PolyId::QLookupSelector, coset_idx)?;
             manager.async_copy_to_device(
-                &mut setup.lookup_table_type_monomial, 
-                PolyId::QTableType, 
+                &mut setup.lookup_table_type_monomial,
+                PolyId::QTableType,
                 PolyForm::Monomial,
                 0..MC::FULL_SLOT_SIZE,
             )?;
@@ -496,12 +650,8 @@ pub fn compute_lookup_gate<
 
         compute_lookup_gate_0(manager, constants, coset_idx)?;
 
-        let poly_ids = [
-            PolyId::S,
-            PolyId::SShifted,
-            PolyId::ZLookupShifted,
-        ];
-        
+        let poly_ids = [PolyId::S, PolyId::SShifted, PolyId::ZLookupShifted];
+
         for (i, id) in poly_ids.iter().enumerate() {
             manager.multigpu_coset_fft_to_free_slot(*id, coset_idx)?;
         }
@@ -532,15 +682,39 @@ pub fn compute_lookup_gate<
 pub fn compute_shifted_lookup_polynomials<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> Result<(), ProvingError> {
-
-    manager.copy_from_device_to_free_device(PolyId::ZLookup, PolyId::ZLookupShifted, PolyForm::Monomial)?;
-    manager.distribute_omega_powers(PolyId::ZLookupShifted, PolyForm::Monomial, MC::FULL_SLOT_SIZE_LOG, 0, 1, false)?;
+    manager.copy_from_device_to_free_device(
+        PolyId::ZLookup,
+        PolyId::ZLookupShifted,
+        PolyForm::Monomial,
+    )?;
+    manager.distribute_omega_powers(
+        PolyId::ZLookupShifted,
+        PolyForm::Monomial,
+        MC::FULL_SLOT_SIZE_LOG,
+        0,
+        1,
+        false,
+    )?;
 
     manager.copy_from_device_to_free_device(PolyId::S, PolyId::SShifted, PolyForm::Monomial)?;
-    manager.distribute_omega_powers(PolyId::SShifted, PolyForm::Monomial, MC::FULL_SLOT_SIZE_LOG, 0, 1, false)?;
+    manager.distribute_omega_powers(
+        PolyId::SShifted,
+        PolyForm::Monomial,
+        MC::FULL_SLOT_SIZE_LOG,
+        0,
+        1,
+        false,
+    )?;
 
     manager.copy_from_device_to_free_device(PolyId::T, PolyId::TShifted, PolyForm::Monomial)?;
-    manager.distribute_omega_powers(PolyId::TShifted, PolyForm::Monomial, MC::FULL_SLOT_SIZE_LOG, 0, 1, false)?;
+    manager.distribute_omega_powers(
+        PolyId::TShifted,
+        PolyForm::Monomial,
+        MC::FULL_SLOT_SIZE_LOG,
+        0,
+        1,
+        false,
+    )?;
 
     Ok(())
 }
@@ -559,14 +733,43 @@ pub fn compute_lookup_gate_0<MC: ManagerConfigs>(
     manager.add_assign_scaled(PolyId::F, PolyId::QTableType, PolyForm::LDE(coset_idx), tmp)?;
     manager.mul_assign(PolyId::F, PolyId::QLookupSelector, PolyForm::LDE(coset_idx))?;
 
-    manager.add_constant(PolyId::F, PolyForm::LDE(coset_idx), constants.gamma_for_lookup)?;
+    manager.add_constant(
+        PolyId::F,
+        PolyForm::LDE(coset_idx),
+        constants.gamma_for_lookup,
+    )?;
 
-    manager.rename_slot(PolyId::T, PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx));
-    manager.add_assign_scaled(PolyId::Custom("lookup_gate"), PolyId::TShifted, PolyForm::LDE(coset_idx), constants.beta_for_lookup)?;
-    manager.add_constant(PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx), constants.gamma_beta_lookup)?;
-    manager.mul_assign(PolyId::Custom("lookup_gate"), PolyId::F, PolyForm::LDE(coset_idx))?;
-    manager.mul_constant(PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx), constants.beta_plus_one_lookup)?;
-    manager.mul_assign(PolyId::Custom("lookup_gate"), PolyId::ZLookup, PolyForm::LDE(coset_idx))?;
+    manager.rename_slot(
+        PolyId::T,
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+    );
+    manager.add_assign_scaled(
+        PolyId::Custom("lookup_gate"),
+        PolyId::TShifted,
+        PolyForm::LDE(coset_idx),
+        constants.beta_for_lookup,
+    )?;
+    manager.add_constant(
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+        constants.gamma_beta_lookup,
+    )?;
+    manager.mul_assign(
+        PolyId::Custom("lookup_gate"),
+        PolyId::F,
+        PolyForm::LDE(coset_idx),
+    )?;
+    manager.mul_constant(
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+        constants.beta_plus_one_lookup,
+    )?;
+    manager.mul_assign(
+        PolyId::Custom("lookup_gate"),
+        PolyId::ZLookup,
+        PolyForm::LDE(coset_idx),
+    )?;
 
     let poly_ids = [
         PolyId::F,
@@ -579,7 +782,7 @@ pub fn compute_lookup_gate_0<MC: ManagerConfigs>(
 
     for id in poly_ids.iter() {
         manager.free_slot(*id, PolyForm::LDE(coset_idx));
-    }   
+    }
 
     Ok(())
 }
@@ -589,16 +792,46 @@ pub fn compute_lookup_gate_1<MC: ManagerConfigs>(
     constants: &ProverConstants<Fr>,
     coset_idx: usize,
 ) -> Result<(), ProvingError> {
-    manager.rename_slot(PolyId::S, PolyId::Custom("lookup_gate2"), PolyForm::LDE(coset_idx));
-    manager.add_assign_scaled(PolyId::Custom("lookup_gate2"), PolyId::SShifted, PolyForm::LDE(coset_idx), constants.beta_for_lookup)?;
-    manager.add_constant(PolyId::Custom("lookup_gate2"), PolyForm::LDE(coset_idx), constants.gamma_beta_lookup)?;
-    manager.mul_assign(PolyId::Custom("lookup_gate2"), PolyId::ZLookupShifted, PolyForm::LDE(coset_idx))?;
+    manager.rename_slot(
+        PolyId::S,
+        PolyId::Custom("lookup_gate2"),
+        PolyForm::LDE(coset_idx),
+    );
+    manager.add_assign_scaled(
+        PolyId::Custom("lookup_gate2"),
+        PolyId::SShifted,
+        PolyForm::LDE(coset_idx),
+        constants.beta_for_lookup,
+    )?;
+    manager.add_constant(
+        PolyId::Custom("lookup_gate2"),
+        PolyForm::LDE(coset_idx),
+        constants.gamma_beta_lookup,
+    )?;
+    manager.mul_assign(
+        PolyId::Custom("lookup_gate2"),
+        PolyId::ZLookupShifted,
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    manager.sub_assign(PolyId::Custom("lookup_gate2"), PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx))?;
-    
-    manager.mul_assign(PolyId::Custom("lookup_gate2"), PolyId::X, PolyForm::LDE(coset_idx))?;
+    manager.sub_assign(
+        PolyId::Custom("lookup_gate2"),
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    manager.add_assign_scaled(PolyId::TPart(coset_idx), PolyId::Custom("lookup_gate2"), PolyForm::LDE(coset_idx), constants.alpha[6])?;
+    manager.mul_assign(
+        PolyId::Custom("lookup_gate2"),
+        PolyId::X,
+        PolyForm::LDE(coset_idx),
+    )?;
+
+    manager.add_assign_scaled(
+        PolyId::TPart(coset_idx),
+        PolyId::Custom("lookup_gate2"),
+        PolyForm::LDE(coset_idx),
+        constants.alpha[6],
+    )?;
 
     let poly_ids = [
         PolyId::Custom("lookup_gate"),
@@ -610,7 +843,7 @@ pub fn compute_lookup_gate_1<MC: ManagerConfigs>(
 
     for id in poly_ids.iter() {
         manager.free_slot(*id, PolyForm::LDE(coset_idx));
-    }   
+    }
 
     Ok(())
 }
@@ -620,17 +853,34 @@ pub fn compute_lookup_gate_2<MC: ManagerConfigs>(
     constants: &ProverConstants<Fr>,
     coset_idx: usize,
 ) -> Result<(), ProvingError> {
-    manager.create_lagrange_poly_in_free_slot(PolyId::L0, PolyForm::LDE(coset_idx), 0)?;
+    manager.create_lagrange_poly_in_free_slot(PolyId::L0, PolyForm::LDE(coset_idx), 0)?; //TODO create Monomial if there's enough space
 
-    manager.copy_from_device_to_free_device(PolyId::ZLookup, PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx))?;
-    manager.sub_constant(PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx), Fr::one())?;
-    manager.mul_assign(PolyId::Custom("lookup_gate"), PolyId::L0, PolyForm::LDE(coset_idx))?;
+    manager.copy_from_device_to_free_device(
+        PolyId::ZLookup,
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+    )?;
+    manager.sub_constant(
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+        Fr::one(),
+    )?;
+    manager.mul_assign(
+        PolyId::Custom("lookup_gate"),
+        PolyId::L0,
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    manager.add_assign_scaled(PolyId::TPart(coset_idx), PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx), constants.alpha[7])?;
+    manager.add_assign_scaled(
+        PolyId::TPart(coset_idx),
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+        constants.alpha[7],
+    )?;
 
     for id in [PolyId::Custom("lookup_gate"), PolyId::L0].iter() {
-        manager.free_slot(*id,PolyForm::LDE(coset_idx));
-    }  
+        manager.free_slot(*id, PolyForm::LDE(coset_idx));
+    }
 
     Ok(())
 }
@@ -640,17 +890,38 @@ pub fn compute_lookup_gate_3<MC: ManagerConfigs>(
     constants: &ProverConstants<Fr>,
     coset_idx: usize,
 ) -> Result<(), ProvingError> {
-    manager.create_lagrange_poly_in_free_slot(PolyId::Ln1, PolyForm::LDE(coset_idx), MC::FULL_SLOT_SIZE-1)?;
+    manager.create_lagrange_poly_in_free_slot(
+        PolyId::Ln1,
+        PolyForm::LDE(coset_idx),
+        MC::FULL_SLOT_SIZE - 1,
+    )?; //TODO create Monomial if there's enough space
 
-    manager.rename_slot(PolyId::ZLookup, PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx));
-    manager.sub_constant(PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx), constants.expected)?;
-    manager.mul_assign(PolyId::Custom("lookup_gate"), PolyId::Ln1, PolyForm::LDE(coset_idx))?;
+    manager.rename_slot(
+        PolyId::ZLookup,
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+    );
+    manager.sub_constant(
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+        constants.expected,
+    )?;
+    manager.mul_assign(
+        PolyId::Custom("lookup_gate"),
+        PolyId::Ln1,
+        PolyForm::LDE(coset_idx),
+    )?;
 
-    manager.add_assign_scaled(PolyId::TPart(coset_idx), PolyId::Custom("lookup_gate"), PolyForm::LDE(coset_idx), constants.alpha[8])?;
+    manager.add_assign_scaled(
+        PolyId::TPart(coset_idx),
+        PolyId::Custom("lookup_gate"),
+        PolyForm::LDE(coset_idx),
+        constants.alpha[8],
+    )?;
 
     for id in [PolyId::Custom("lookup_gate"), PolyId::Ln1].iter() {
-        manager.free_slot(*id,PolyForm::LDE(coset_idx));
-    }  
+        manager.free_slot(*id, PolyForm::LDE(coset_idx));
+    }
 
     Ok(())
 }
@@ -658,7 +929,12 @@ pub fn compute_lookup_gate_3<MC: ManagerConfigs>(
 pub fn compute_quotient_monomial_and_schedule_commitments<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> Result<Vec<MSMHandle>, ProvingError> {
-    let polys = [PolyId::TPart(0), PolyId::TPart(1), PolyId::TPart(2), PolyId::TPart(3)];
+    let polys = [
+        PolyId::TPart(0),
+        PolyId::TPart(1),
+        PolyId::TPart(2),
+        PolyId::TPart(3),
+    ];
 
     manager.multigpu_coset_4n_ifft(polys)?;
 
@@ -673,16 +949,13 @@ pub fn compute_quotient_monomial_and_schedule_commitments<MC: ManagerConfigs>(
 
     for coset_idx in 0..LDE_FACTOR {
         let handle = manager.msm(PolyId::TPart(coset_idx))?;
-        msm_handles.push(handle);   
+        msm_handles.push(handle);
     }
 
     Ok(msm_handles)
 }
 
-pub fn schedule_monomial_copyings_for_last_rounds<
-    S: SynthesisMode,
-    MC: ManagerConfigs,
->(
+pub fn schedule_monomial_copyings_for_last_rounds<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     setup: &mut AsyncSetup,
@@ -697,35 +970,52 @@ pub fn schedule_monomial_copyings_for_last_rounds<
 
         for i in 0..8 {
             copying_setup_poly(manager, &assembly, i);
+            // manager.multigpu_ifft(GATE_SETUP_LIST[i], false)?;
         }
 
         get_gate_selector_values_from_assembly(manager, assembly, worker, 0)?;
         get_gate_selector_values_from_assembly(manager, assembly, worker, 1)?;
         manager.multigpu_ifft(PolyId::QMainSelector, false)?;
-    } else {       
-        compute_values_from_bitvec(manager, &setup.lookup_selector_bitvec, PolyId::QLookupSelector);
+    } else {
+        // manager.async_copy_to_device(
+        //     &mut setup.lookup_selector_monomial,
+        //     PolyId::QLookupSelector,
+        //     PolyForm::Monomial,
+        //     0..MC::FULL_SLOT_SIZE,
+        // )?;
+        compute_values_from_bitvec(
+            manager,
+            &setup.lookup_selector_bitvec,
+            PolyId::QLookupSelector,
+        );
         manager.multigpu_ifft(PolyId::QLookupSelector, false)?;
 
         manager.async_copy_to_device(
-            &mut setup.lookup_table_type_monomial, 
-            PolyId::QTableType, 
+            &mut setup.lookup_table_type_monomial,
+            PolyId::QTableType,
             PolyForm::Monomial,
             0..MC::FULL_SLOT_SIZE,
         )?;
 
         for (i, poly_id) in GATE_SETUP_LIST.iter().enumerate() {
             manager.async_copy_to_device(
-                &mut setup.gate_setup_monomials[i], 
-                *poly_id, 
+                &mut setup.gate_setup_monomials[i],
+                *poly_id,
                 PolyForm::Monomial,
                 0..MC::FULL_SLOT_SIZE,
             )?;
         }
 
-        for (i, poly_id) in [
-            PolyId::QMainSelector,
-            PolyId::QCustomSelector
-        ].into_iter().enumerate() {            
+        for (i, poly_id) in [PolyId::QMainSelector, PolyId::QCustomSelector]
+            .into_iter()
+            .enumerate()
+        {
+            // manager.async_copy_to_device(
+            //     &mut setup.gate_selectors_monomials[i],
+            //     poly_id,
+            //     PolyForm::Monomial,
+            //     0..MC::FULL_SLOT_SIZE,
+            // )?;
             compute_values_from_bitvec(manager, &setup.gate_selectors_bitvecs[i], poly_id);
             manager.multigpu_ifft(poly_id, false)?;
         }
@@ -734,14 +1024,11 @@ pub fn schedule_monomial_copyings_for_last_rounds<
     Ok(())
 }
 
-pub fn get_gate_selector_values_from_assembly< 
-    S: SynthesisMode,
-    MC: ManagerConfigs,
->(
+pub fn get_gate_selector_values_from_assembly<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
-    idx: usize
+    idx: usize,
 ) -> Result<(), ProvingError> {
     let poly_id = if idx == 0 {
         PolyId::QMainSelector
@@ -750,6 +1037,6 @@ pub fn get_gate_selector_values_from_assembly<
     };
 
     crate_selector_on_manager(manager, assembly, poly_id)?;
-    
+
     Ok(())
 }

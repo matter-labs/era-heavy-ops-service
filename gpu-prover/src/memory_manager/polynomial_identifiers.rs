@@ -1,20 +1,20 @@
 use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SlotStatus{
+pub enum SlotStatus {
     Free,
     Busy(PolyId, PolyForm),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PolyForm{
+pub enum PolyForm {
     Monomial,
     Values,
-    LDE(usize)
+    LDE(usize),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PolyId{
+pub enum PolyId {
     Enumerated(usize),
     Custom(&'static str),
     Tmp,
@@ -73,10 +73,10 @@ pub trait ManagerConfigs {
     const NUM_HOST_SLOTS: usize;
 
     const NUM_GPUS: usize = 1 << Self::NUM_GPUS_LOG;
-    const FULL_SLOT_SIZE: usize =  1 << Self::FULL_SLOT_SIZE_LOG;
+    const FULL_SLOT_SIZE: usize = 1 << Self::FULL_SLOT_SIZE_LOG;
     const FULL_SLOT_BYTE_SIZE: usize = Self::FULL_SLOT_SIZE * FIELD_ELEMENT_LEN;
     const SLOT_SIZE_LOG: usize = Self::FULL_SLOT_SIZE_LOG - Self::NUM_GPUS_LOG;
-    const SLOT_SIZE: usize =  1 << Self::SLOT_SIZE_LOG;
+    const SLOT_SIZE: usize = 1 << Self::SLOT_SIZE_LOG;
     const SLOT_BYTE_SIZE: usize = Self::SLOT_SIZE * FIELD_ELEMENT_LEN;
 }
 

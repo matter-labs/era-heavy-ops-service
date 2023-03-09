@@ -1,6 +1,6 @@
 use super::*;
-use bellman::Field;
 use crate::cuda_bindings::GpuError;
+use bellman::Field;
 use core::ops::Range;
 
 pub enum Operation {
@@ -14,7 +14,7 @@ pub enum Operation {
     SubScaled,
     BatchInv,
     GrandProd,
-    SetValue
+    SetValue,
 }
 
 impl DeviceBuf<Fr> {
@@ -26,7 +26,11 @@ impl DeviceBuf<Fr> {
         range: Range<usize>,
         op: Operation,
     ) -> GpuResult<()> {
-        assert!(ctx.ff, "ff is not set up on GpuContext with id {}", ctx.device_id());
+        assert!(
+            ctx.ff,
+            "ff is not set up on GpuContext with id {}",
+            ctx.device_id()
+        );
         set_device(ctx.device_id())?;
 
         let length = range.len();
@@ -41,7 +45,10 @@ impl DeviceBuf<Fr> {
         let result = unsafe {
             match op {
                 Operation::AddConst => {
-                    assert!(other.is_none(), "other DeviceBuf should be None in AddConst operation");
+                    assert!(
+                        other.is_none(),
+                        "other DeviceBuf should be None in AddConst operation"
+                    );
                     let constant = constant.expect("constant should be Some in AddConst operation");
 
                     ff_a_plus_x(
@@ -51,9 +58,12 @@ impl DeviceBuf<Fr> {
                         length as u32,
                         ctx.exec_stream.inner,
                     )
-                },
+                }
                 Operation::SubConst => {
-                    assert!(other.is_none(), "other DeviceBuf should be None in SubConst operation");
+                    assert!(
+                        other.is_none(),
+                        "other DeviceBuf should be None in SubConst operation"
+                    );
                     let constant = constant.expect("constant should be Some in SubConst operation");
 
                     let mut constant = constant;
@@ -66,9 +76,12 @@ impl DeviceBuf<Fr> {
                         length as u32,
                         ctx.exec_stream.inner,
                     )
-                },
+                }
                 Operation::MulConst => {
-                    assert!(other.is_none(), "other DeviceBuf should be None in MulConst operation");
+                    assert!(
+                        other.is_none(),
+                        "other DeviceBuf should be None in MulConst operation"
+                    );
                     let constant = constant.expect("constant should be Some in MulConst operation");
 
                     ff_ax(
@@ -78,74 +91,103 @@ impl DeviceBuf<Fr> {
                         length as u32,
                         ctx.exec_stream.inner,
                     )
-                },
+                }
                 Operation::Add => {
-                    assert!(constant.is_none(), "constant should be None in Add operation");
-                    let other = other.as_ref().expect("other DeviceBuf should be Some in Add operation");
+                    assert!(
+                        constant.is_none(),
+                        "constant should be None in Add operation"
+                    );
+                    let other = other
+                        .as_ref()
+                        .expect("other DeviceBuf should be Some in Add operation");
 
                     ff_x_plus_y(
-                        self.as_ptr(range.clone()) as *const c_void, 
-                        other.as_ptr(range.clone()) as *const c_void, 
+                        self.as_ptr(range.clone()) as *const c_void,
+                        other.as_ptr(range.clone()) as *const c_void,
                         self.as_mut_ptr(range) as *mut c_void,
-                        length as u32, 
+                        length as u32,
                         ctx.exec_stream.inner,
                     )
-                },
+                }
                 Operation::Sub => {
-                    assert!(constant.is_none(), "constant should be None in Sub operation");
-                    let other = other.as_ref().expect("other DeviceBuf should be Some in Sub operation");
+                    assert!(
+                        constant.is_none(),
+                        "constant should be None in Sub operation"
+                    );
+                    let other = other
+                        .as_ref()
+                        .expect("other DeviceBuf should be Some in Sub operation");
 
                     ff_x_minus_y(
-                        self.as_ptr(range.clone()) as *const c_void, 
-                        other.as_ptr(range.clone()) as *const c_void, 
+                        self.as_ptr(range.clone()) as *const c_void,
+                        other.as_ptr(range.clone()) as *const c_void,
                         self.as_mut_ptr(range) as *mut c_void,
-                        length as u32, 
+                        length as u32,
                         ctx.exec_stream.inner,
                     )
-                },
+                }
                 Operation::Mul => {
-                    assert!(constant.is_none(), "constant should be None in Mul operation");
-                    let other = other.as_ref().expect("other DeviceBuf should be Some in Mul operation");
+                    assert!(
+                        constant.is_none(),
+                        "constant should be None in Mul operation"
+                    );
+                    let other = other
+                        .as_ref()
+                        .expect("other DeviceBuf should be Some in Mul operation");
 
                     ff_x_mul_y(
-                        self.as_ptr(range.clone()) as *const c_void, 
-                        other.as_ptr(range.clone()) as *const c_void, 
+                        self.as_ptr(range.clone()) as *const c_void,
+                        other.as_ptr(range.clone()) as *const c_void,
                         self.as_mut_ptr(range) as *mut c_void,
-                        length as u32, 
+                        length as u32,
                         ctx.exec_stream.inner,
                     )
-                },
+                }
                 Operation::AddScaled => {
-                    let constant = constant.expect("constant should be Some in AddScaled operation");
-                    let other = other.as_ref().expect("other DeviceBuf should be Some in AddScaled operation");
+                    let constant =
+                        constant.expect("constant should be Some in AddScaled operation");
+                    let other = other
+                        .as_ref()
+                        .expect("other DeviceBuf should be Some in AddScaled operation");
 
                     ff_ax_plus_y(
                         &constant as *const Fr as *const c_void,
-                        other.as_ptr(range.clone()) as *const c_void, 
-                        self.as_ptr(range.clone()) as *const c_void, 
+                        other.as_ptr(range.clone()) as *const c_void,
+                        self.as_ptr(range.clone()) as *const c_void,
                         self.as_mut_ptr(range) as *mut c_void,
-                        length as u32, 
+                        length as u32,
                         ctx.exec_stream.inner,
                     )
-                },
+                }
                 Operation::SubScaled => {
-                    let constant = constant.expect("constant should be Some in SubScaled operation");
-                    let other = other.as_ref().expect("other DeviceBuf should be Some in SubScaled operation");
+                    let constant =
+                        constant.expect("constant should be Some in SubScaled operation");
+                    let other = other
+                        .as_ref()
+                        .expect("other DeviceBuf should be Some in SubScaled operation");
 
                     ff_x_minus_ay(
                         &constant as *const Fr as *const c_void,
-                        self.as_ptr(range.clone()) as *const c_void, 
-                        other.as_ptr(range.clone()) as *const c_void, 
+                        self.as_ptr(range.clone()) as *const c_void,
+                        other.as_ptr(range.clone()) as *const c_void,
                         self.as_mut_ptr(range) as *mut c_void,
-                        length as u32, 
+                        length as u32,
                         ctx.exec_stream.inner,
                     )
-                },
+                }
                 Operation::BatchInv => {
-                    assert!(other.is_none(), "other DeviceBuf should be None in BatchInv operation");
-                    assert!(constant.is_none(), "constant should be None in BatchInv operation");
+                    assert!(
+                        other.is_none(),
+                        "other DeviceBuf should be None in BatchInv operation"
+                    );
+                    assert!(
+                        constant.is_none(),
+                        "constant should be None in BatchInv operation"
+                    );
 
-                    let mem_pool = ctx.mem_pool.expect("mem pool should be allocated in BatchInv operation");
+                    let mem_pool = ctx
+                        .mem_pool
+                        .expect("mem pool should be allocated in BatchInv operation");
 
                     let cfg = ff_inverse_configuration {
                         mem_pool,
@@ -154,14 +196,22 @@ impl DeviceBuf<Fr> {
                         outputs: self.as_mut_ptr(range) as *mut c_void,
                         count: length as u32,
                     };
-                
+
                     ff_inverse(cfg)
                 }
                 Operation::GrandProd => {
-                    assert!(other.is_none(), "other DeviceBuf should be None in GrandProd operation");
-                    assert!(constant.is_none(), "constant should be None in GrandProd operation");
+                    assert!(
+                        other.is_none(),
+                        "other DeviceBuf should be None in GrandProd operation"
+                    );
+                    assert!(
+                        constant.is_none(),
+                        "constant should be None in GrandProd operation"
+                    );
 
-                    let mem_pool = ctx.mem_pool.expect("mem pool should be allocated in GrandProd operation");
+                    let mem_pool = ctx
+                        .mem_pool
+                        .expect("mem pool should be allocated in GrandProd operation");
 
                     let cfg = ff_grand_product_configuration {
                         mem_pool,
@@ -174,17 +224,20 @@ impl DeviceBuf<Fr> {
                     ff_grand_product(cfg)
                 }
                 Operation::SetValue => {
-                    assert!(other.is_none(), "other DeviceBuf should be None in SetValue operation");
+                    assert!(
+                        other.is_none(),
+                        "other DeviceBuf should be None in SetValue operation"
+                    );
                     let constant = constant.expect("constant should be Some in SetValue operation");
 
                     ff_set_value(
                         self.as_mut_ptr(range) as *mut c_void,
                         &constant as *const Fr as *const c_void,
-                        length as u32, 
-                        ctx.exec_stream.inner
+                        length as u32,
+                        ctx.exec_stream.inner,
                     )
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         };
 
@@ -210,7 +263,11 @@ impl DeviceBuf<Fr> {
         shift: usize,
         inverse: bool,
     ) -> GpuResult<()> {
-        assert!(ctx.ff, "ff is not set up on GpuContext with id {}", ctx.device_id());
+        assert!(
+            ctx.ff,
+            "ff is not set up on GpuContext with id {}",
+            ctx.device_id()
+        );
         set_device(ctx.device_id())?;
 
         let length = self.len();
@@ -226,7 +283,7 @@ impl DeviceBuf<Fr> {
                 offset as u32,
                 length as u32,
                 inverse,
-                ctx.exec_stream.inner
+                ctx.exec_stream.inner,
             );
             if result != 0 {
                 return Err(GpuError::DistributeOmegasErr(result));

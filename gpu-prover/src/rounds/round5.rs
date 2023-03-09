@@ -13,19 +13,16 @@ pub fn round5<C: Circuit<Bn256>, T: Transcript<Fr>, MC: ManagerConfigs>(
 
     commit_proof_openings(manager, proof)?;
 
-    let poly_ids = [
-        PolyId::W,
-        PolyId::W1,
-    ];
+    let poly_ids = [PolyId::W, PolyId::W1];
 
     for id in poly_ids.iter() {
         manager.free_slot(*id, PolyForm::Monomial);
     }
-    
+
     Ok(())
 }
 
-fn get_round_5_challenges<T: Transcript<Fr>> (
+fn get_round_5_challenges<T: Transcript<Fr>>(
     constants: &mut ProverConstants<Fr>,
     transcript: &mut T,
 ) {
@@ -39,7 +36,7 @@ fn get_round_5_challenges<T: Transcript<Fr>> (
     }
 }
 
-fn compute_proof_opening_at_z<MC: ManagerConfigs> (
+fn compute_proof_opening_at_z<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     constants: &ProverConstants<Fr>,
 ) -> Result<(), ProvingError> {
@@ -53,9 +50,7 @@ fn compute_proof_opening_at_z<MC: ManagerConfigs> (
     Ok(())
 }
 
-fn compute_coeffs_and_ids_for_opening_at_z (
-    constants: &ProverConstants<Fr>
-) -> Vec<(Fr, PolyId)> {
+fn compute_coeffs_and_ids_for_opening_at_z(constants: &ProverConstants<Fr>) -> Vec<(Fr, PolyId)> {
     let mut coeffs = vec![];
 
     for v_power in constants.v[0..12].iter() {
@@ -80,11 +75,10 @@ fn compute_coeffs_and_ids_for_opening_at_z (
     coeffs.into_iter().zip(ids.into_iter()).collect()
 }
 
-fn compute_proof_opening_at_z_omega<MC: ManagerConfigs> (
+fn compute_proof_opening_at_z_omega<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     constants: &ProverConstants<Fr>,
 ) -> Result<(), ProvingError> {
-
     manager.copy_from_device_to_free_device(PolyId::ZPerm, PolyId::W1, PolyForm::Monomial)?;
     manager.mul_constant(PolyId::W1, PolyForm::Monomial, constants.v[12])?;
 
@@ -100,7 +94,7 @@ fn compute_proof_opening_at_z_omega<MC: ManagerConfigs> (
     Ok(())
 }
 
-fn commit_proof_openings<C: Circuit<Bn256>, MC: ManagerConfigs> (
+fn commit_proof_openings<C: Circuit<Bn256>, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     proof: &mut Proof<Bn256, C>,
 ) -> Result<(), ProvingError> {
@@ -113,12 +107,12 @@ fn commit_proof_openings<C: Circuit<Bn256>, MC: ManagerConfigs> (
 }
 
 pub fn free_useless_round_5_slots<MC: ManagerConfigs>(
-    manager: &mut DeviceMemoryManager<Fr, MC>
+    manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> Result<(), ProvingError> {
     let poly_ids = [
-        PolyId::Sigma(0), 
-        PolyId::Sigma(1), 
-        PolyId::Sigma(2), 
+        PolyId::Sigma(0),
+        PolyId::Sigma(1),
+        PolyId::Sigma(2),
         PolyId::QMainSelector,
         PolyId::QLookupSelector,
         PolyId::QTableType,

@@ -1,5 +1,6 @@
 use super::*;
 
+// #[derive(Clone)]
 pub struct Event {
     pub(crate) sub_events: Mutex<Vec<Vec<(usize, Arc<bc_event>)>>>,
 }
@@ -7,13 +8,17 @@ pub struct Event {
 impl Clone for Event {
     fn clone(&self) -> Self {
         let inner = self.sub_events.lock().unwrap();
-        Self{ sub_events: Mutex::new(inner.clone()) }
+        Self {
+            sub_events: Mutex::new(inner.clone()),
+        }
     }
 }
 
 impl Event {
     pub fn new() -> Self {
-        Self { sub_events: Mutex::new(vec![]) }
+        Self {
+            sub_events: Mutex::new(vec![]),
+        }
     }
 
     pub fn record(&mut self, stream: &Stream) -> GpuResult<()> {
@@ -44,7 +49,10 @@ impl Event {
         }
 
         let event = Arc::new(event);
-        let inner = sub_events[device_id].iter_mut().filter(|(id, _)| *id == stream_id).next();
+        let inner = sub_events[device_id]
+            .iter_mut()
+            .filter(|(id, _)| *id == stream_id)
+            .next();
         if let Some(inner) = inner {
             if Arc::strong_count(&inner.1) == 1 {
                 unsafe {

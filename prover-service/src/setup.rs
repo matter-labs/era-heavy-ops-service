@@ -108,7 +108,6 @@ impl ZkSyncSetup {
                 CircuitType::StorageRepeatedWritesHasher as u8
             }
             ZkSyncSetup::EventsMerkelization(..) => CircuitType::EventsMerkelization as u8,
-            ZkSyncSetup::L1MessagesHasher(..) => CircuitType::L1MessagesHasher as u8,
             ZkSyncSetup::None(..) => CircuitType::None as u8,
         }
     }
@@ -136,7 +135,6 @@ impl ZkSyncSetup {
             ZkSyncSetup::InitialWritesPubdataHasher(..) => "Initial writes pubdata rehasher",
             ZkSyncSetup::RepeatedWritesPubdataHasher(..) => "Repeated writes pubdata rehasher",
             ZkSyncSetup::EventsMerkelization(..) => "Events merklizer",
-            ZkSyncSetup::L1MessagesHasher(..) => "L1 messages hasher",
         }
     }
 
@@ -172,9 +170,7 @@ impl ZkSyncSetup {
             a if a == CircuitType::L1MessagesRevertsFilter as u8 => {
                 ZkSyncSetup::L1MessagesSorter(setup)
             }
-            a if a == CircuitType::L1MessagesHasher as u8 => {
-                ZkSyncSetup::L1MessagesHasher(setup)
-            }
+            a if a == CircuitType::L1MessagesHasher as u8 => ZkSyncSetup::L1MessagesHasher(setup),
             a if a == CircuitType::L1MessagesMerkelization as u8 => {
                 ZkSyncSetup::L1MessagesMerklier(setup)
             }
@@ -186,9 +182,6 @@ impl ZkSyncSetup {
             }
             a if a == CircuitType::EventsMerkelization as u8 => {
                 ZkSyncSetup::EventsMerkelization(setup)
-            }
-            a if a == CircuitType::L1MessagesHasher as u8 => {
-                ZkSyncSetup::L1MessagesHasher(setup)
             }
             a @ _ => panic!("unknown numeric type {}", a),
         }
@@ -217,7 +210,6 @@ impl ZkSyncSetup {
             ZkSyncSetup::InitialWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::RepeatedWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::EventsMerkelization(inner) => inner,
-            ZkSyncSetup::L1MessagesHasher(inner) => {inner}
         };
         inner.inner
     }
@@ -245,7 +237,6 @@ impl ZkSyncSetup {
             ZkSyncSetup::InitialWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::RepeatedWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::EventsMerkelization(inner) => inner,
-            ZkSyncSetup::L1MessagesHasher(inner) => {inner}
         };
         &inner.inner
     }
@@ -272,7 +263,6 @@ impl ZkSyncSetup {
             ZkSyncSetup::InitialWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::RepeatedWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::EventsMerkelization(inner) => inner,
-            ZkSyncSetup::L1MessagesHasher(inner) => {inner}
         };
         inner
     }
@@ -299,7 +289,6 @@ impl ZkSyncSetup {
             ZkSyncSetup::InitialWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::RepeatedWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::EventsMerkelization(inner) => inner,
-            ZkSyncSetup::L1MessagesHasher(inner) => {inner}
         };
         inner
     }
@@ -327,7 +316,6 @@ impl ZkSyncSetup {
             ZkSyncSetup::InitialWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::RepeatedWritesPubdataHasher(inner) => inner,
             ZkSyncSetup::EventsMerkelization(inner) => inner,
-            ZkSyncSetup::L1MessagesHasher(inner) => {inner}
         };
         &mut inner.inner
     }

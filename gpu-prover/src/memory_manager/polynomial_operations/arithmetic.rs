@@ -1,14 +1,10 @@
 use super::*;
-use crate::cuda_bindings::{DeviceBuf, Operation, GpuError};
+use crate::cuda_bindings::{DeviceBuf, GpuError, Operation};
 
 impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
-    pub fn add_constant(
-        &mut self,
-        id: PolyId,
-        form: PolyForm,
-        constant: Fr,
-    ) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
+    pub fn add_constant(&mut self, id: PolyId, form: PolyForm, constant: Fr) -> GpuResult<()> {
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -17,20 +13,16 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 None,
                 Some(constant),
                 0..MC::SLOT_SIZE,
-                Operation::AddConst
+                Operation::AddConst,
             )?;
         }
 
         Ok(())
     }
 
-    pub fn sub_constant(
-        &mut self,
-        id: PolyId,
-        form: PolyForm,
-        constant: Fr,
-    ) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
+    pub fn sub_constant(&mut self, id: PolyId, form: PolyForm, constant: Fr) -> GpuResult<()> {
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -39,20 +31,16 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 None,
                 Some(constant),
                 0..MC::SLOT_SIZE,
-                Operation::SubConst
+                Operation::SubConst,
             )?;
         }
 
         Ok(())
     }
 
-    pub fn mul_constant(
-        &mut self,
-        id: PolyId,
-        form: PolyForm,
-        constant: Fr,
-    ) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
+    pub fn mul_constant(&mut self, id: PolyId, form: PolyForm, constant: Fr) -> GpuResult<()> {
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -61,22 +49,19 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 None,
                 Some(constant),
                 0..MC::SLOT_SIZE,
-                Operation::MulConst
+                Operation::MulConst,
             )?;
         }
 
         Ok(())
     }
 
-    pub fn add_assign(
-        &mut self,
-        id_1: PolyId,
-        id_2: PolyId,
-        form: PolyForm,
-    ) -> GpuResult<()> {
-        let idx_1 = self.get_slot_idx(id_1, form)
+    pub fn add_assign(&mut self, id_1: PolyId, id_2: PolyId, form: PolyForm) -> GpuResult<()> {
+        let idx_1 = self
+            .get_slot_idx(id_1, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_1, form));
-        let idx_2 = self.get_slot_idx(id_2, form)
+        let idx_2 = self
+            .get_slot_idx(id_2, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_2, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -87,22 +72,19 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 Some(&mut slot_2.0[device_id]),
                 None,
                 0..MC::SLOT_SIZE,
-                Operation::Add
+                Operation::Add,
             )?;
         }
 
         Ok(())
     }
 
-    pub fn sub_assign(
-        &mut self,
-        id_1: PolyId,
-        id_2: PolyId,
-        form: PolyForm,
-    ) -> GpuResult<()> {
-        let idx_1 = self.get_slot_idx(id_1, form)
+    pub fn sub_assign(&mut self, id_1: PolyId, id_2: PolyId, form: PolyForm) -> GpuResult<()> {
+        let idx_1 = self
+            .get_slot_idx(id_1, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_1, form));
-        let idx_2 = self.get_slot_idx(id_2, form)
+        let idx_2 = self
+            .get_slot_idx(id_2, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_2, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -113,22 +95,19 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 Some(&mut slot_2.0[device_id]),
                 None,
                 0..MC::SLOT_SIZE,
-                Operation::Sub
+                Operation::Sub,
             )?;
         }
 
         Ok(())
     }
 
-    pub fn mul_assign(
-        &mut self,
-        id_1: PolyId,
-        id_2: PolyId,
-        form: PolyForm,
-    ) -> GpuResult<()> {
-        let idx_1 = self.get_slot_idx(id_1, form)
+    pub fn mul_assign(&mut self, id_1: PolyId, id_2: PolyId, form: PolyForm) -> GpuResult<()> {
+        let idx_1 = self
+            .get_slot_idx(id_1, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_1, form));
-        let idx_2 = self.get_slot_idx(id_2, form)
+        let idx_2 = self
+            .get_slot_idx(id_2, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_2, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -139,7 +118,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 Some(&mut slot_2.0[device_id]),
                 None,
                 0..MC::SLOT_SIZE,
-                Operation::Mul
+                Operation::Mul,
             )?;
         }
 
@@ -153,9 +132,11 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         form: PolyForm,
         constant: Fr,
     ) -> GpuResult<()> {
-        let idx_1 = self.get_slot_idx(id_1, form)
+        let idx_1 = self
+            .get_slot_idx(id_1, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_1, form));
-        let idx_2 = self.get_slot_idx(id_2, form)
+        let idx_2 = self
+            .get_slot_idx(id_2, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_2, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -166,7 +147,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 Some(&mut slot_2.0[device_id]),
                 Some(constant),
                 0..MC::SLOT_SIZE,
-                Operation::AddScaled
+                Operation::AddScaled,
             )?;
         }
 
@@ -180,9 +161,11 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         form: PolyForm,
         constant: Fr,
     ) -> GpuResult<()> {
-        let idx_1 = self.get_slot_idx(id_1, form)
+        let idx_1 = self
+            .get_slot_idx(id_1, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_1, form));
-        let idx_2 = self.get_slot_idx(id_2, form)
+        let idx_2 = self
+            .get_slot_idx(id_2, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id_2, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -193,7 +176,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 Some(&mut slot_2.0[device_id]),
                 Some(constant),
                 0..MC::SLOT_SIZE,
-                Operation::SubScaled
+                Operation::SubScaled,
             )?;
         }
 
@@ -211,14 +194,11 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         Ok(())
     }
 
-    pub fn grand_product(
-        &mut self,
-        id: PolyId,
-        form: PolyForm,
-    ) -> GpuResult<()> {
+    pub fn grand_product(&mut self, id: PolyId, form: PolyForm) -> GpuResult<()> {
         assert!(MC::NUM_GPUS <= 2, "other cases are lot needed for now");
 
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -227,7 +207,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 None,
                 None,
                 0..MC::SLOT_SIZE,
-                Operation::GrandProd
+                Operation::GrandProd,
             )?;
         }
 
@@ -242,22 +222,21 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         Ok(())
     }
 
-    unsafe fn grand_product_inner(
-        &mut self,
-        idx: usize
-    ) -> GpuResult<()> {
-        assert_eq!(MC::NUM_GPUS, 2, "this function should be used only for 2 GPUs");
+    unsafe fn grand_product_inner(&mut self, idx: usize) -> GpuResult<()> {
+        assert_eq!(
+            MC::NUM_GPUS,
+            2,
+            "this function should be used only for 2 GPUs"
+        );
         let device_id = self.ctx[1].device_id();
         crate::cuda_bindings::set_device(device_id)?;
 
-        self.ctx[1].exec_stream.wait(
-            self.slots[idx].0[0].write_event()
-        )?;
-        
-        let poly = self.slots[idx].0[1]
-            .as_mut_ptr(0..MC::SLOT_SIZE);
-        let constant = self.slots[idx].0[0]
-            .as_ptr((MC::SLOT_SIZE - 1)..MC::SLOT_SIZE);
+        self.ctx[1]
+            .exec_stream
+            .wait(self.slots[idx].0[0].write_event())?;
+
+        let poly = self.slots[idx].0[1].as_mut_ptr(0..MC::SLOT_SIZE);
+        let constant = self.slots[idx].0[0].as_ptr((MC::SLOT_SIZE - 1)..MC::SLOT_SIZE);
 
         let result = ff_ax(
             constant as *const c_void,
@@ -266,22 +245,23 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             MC::SLOT_SIZE as u32,
             self.ctx[1].exec_stream.inner,
         );
-        if  result != 0 {
+        if result != 0 {
             return Err(GpuError::SchedulingErr(result));
         }
 
-        self.slots[idx].0[0].read_event.record(self.ctx[1].exec_stream())?;
-        self.slots[idx].0[1].write_event.record(self.ctx[1].exec_stream())?;
+        self.slots[idx].0[0]
+            .read_event
+            .record(self.ctx[1].exec_stream())?;
+        self.slots[idx].0[1]
+            .write_event
+            .record(self.ctx[1].exec_stream())?;
 
         Ok(())
     }
 
-    pub fn batch_inversion(
-        &mut self,
-        id: PolyId,
-        form: PolyForm,
-    ) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
+    pub fn batch_inversion(&mut self, id: PolyId, form: PolyForm) -> GpuResult<()> {
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -290,7 +270,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 None,
                 None,
                 0..MC::SLOT_SIZE,
-                Operation::BatchInv
+                Operation::BatchInv,
             )?;
         }
 
@@ -308,7 +288,8 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         shift: usize,
         inverse: bool,
     ) -> GpuResult<()> {
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
 
         for device_id in 0..MC::NUM_GPUS {
@@ -317,7 +298,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 log_degree,
                 offset + device_id * MC::SLOT_SIZE,
                 shift,
-                inverse
+                inverse,
             )?;
         }
 
@@ -330,10 +311,13 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         form: PolyForm,
         base: Fr,
     ) -> Result<(), GpuError> {
-        let idx = self.get_slot_idx(id, form)
+        let idx = self
+            .get_slot_idx(id, form)
             .expect(&format!("No such polynomial: {:?} {:?}", id, form));
         self.new_empty_slot(PolyId::Custom("powers of base"), form);
-        let tmp_idx = self.get_slot_idx(PolyId::Custom("powers of base"), form).unwrap();
+        let tmp_idx = self
+            .get_slot_idx(PolyId::Custom("powers of base"), form)
+            .unwrap();
 
         self.set_values(PolyId::Custom("powers of base"), form, base)?;
         self.slots[tmp_idx].0[0].async_exec_op(
@@ -341,7 +325,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             None,
             Some(Fr::one()),
             0..1,
-            Operation::SetValue
+            Operation::SetValue,
         )?;
 
         self.grand_product(PolyId::Custom("powers of base"), form)?;

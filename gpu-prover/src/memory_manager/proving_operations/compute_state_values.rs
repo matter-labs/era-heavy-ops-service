@@ -1,9 +1,6 @@
 use super::*;
 
-pub fn assign_cs_variables<
-    S: SynthesisMode,
-    MC: ManagerConfigs
->(
+pub fn assign_cs_variables<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
     worker: &Worker,
@@ -11,18 +8,23 @@ pub fn assign_cs_variables<
     assert!(S::PRODUCE_WITNESS);
     // assert_eq!(<DefaultAssembly<S> as PlonkConstraintSystemParams>::STATE_WIDTH, 4);
     assert!(assembly.is_finalized, "assembly should be finalized");
-    assert_eq!(manager.slots.len(), MC::NUM_SLOTS, "slots should be allocated");
-    assert_eq!(manager.polynomials_on_device().len(), 0, "manager should be empty");
+    assert_eq!(
+        manager.slots.len(),
+        MC::NUM_SLOTS,
+        "slots should be allocated"
+    );
+    assert_eq!(
+        manager.polynomials_on_device().len(),
+        0,
+        "manager should be empty"
+    );
 
     wait_events_before_computing_assigments(manager)?;
 
     let num_all_assignments = assembly.input_assingments.len() + assembly.aux_assingments.len();
-    let (
-        mut state_polys,
-        mut variables,
-        mut all_assignments
-    ) = create_buffers_for_computing_assigments(manager, num_all_assignments)?;
-    
+    let (mut state_polys, mut variables, mut all_assignments) =
+        create_buffers_for_computing_assigments(manager, num_all_assignments)?;
+
     let device_id = manager.ctx[0].device_id();
     copy_variables(manager, assembly, worker, &mut variables, device_id)?;
 
@@ -35,20 +37,17 @@ pub fn assign_cs_variables<
         &mut state_polys,
         variables,
         &mut all_assignments,
-        assembly.num_input_gates
+        assembly.num_input_gates,
     )?;
 
-    final_copying_to_slots(
-        manager, 
-        &mut state_polys,
-    )?;
+    final_copying_to_slots(manager, &mut state_polys)?;
 
     write_events_after_computing_assigments(manager)?;
 
     Ok(())
 }
 
-fn create_buffers_for_computing_assigments<MC: ManagerConfigs> (
+fn create_buffers_for_computing_assigments<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assignments_len: usize,
 ) -> GpuResult<(Vec<DeviceBuf<Fr>>, DeviceBuf<u32>, DeviceBuf<Fr>)> {
@@ -66,8 +65,8 @@ fn create_buffers_for_computing_assigments<MC: ManagerConfigs> (
     }
 
     // Create buffers for result
-    let state_polys: Vec<_> = (0..4).map(|i|
-        DeviceBuf {
+    let state_polys: Vec<_> = (0..4)
+        .map(|i| DeviceBuf {
             ptr: manager.slots[offset + i * MC::NUM_GPUS].0[0].as_mut_ptr(0..0),
             len: MC::FULL_SLOT_SIZE,
             device_id,
@@ -76,9 +75,9 @@ fn create_buffers_for_computing_assigments<MC: ManagerConfigs> (
             is_freed: true,
 
             read_event: Event::new(),
-            write_event: Event::new()
-        }
-    ).collect();
+            write_event: Event::new(),
+        })
+        .collect();
 
     // Create buffer for variables
     let variables = DeviceBuf {
@@ -90,11 +89,11 @@ fn create_buffers_for_computing_assigments<MC: ManagerConfigs> (
         is_freed: true,
 
         read_event: Event::new(),
-        write_event: Event::new()
+        write_event: Event::new(),
     };
 
     // Create buffer for assigments with an offset
-    // and set the first value to zero 
+    // and set the first value to zero
     let mut all_assignments = DeviceBuf {
         ptr: manager.slots[offset + 4 * MC::NUM_GPUS + 4].0[0].as_mut_ptr(0..0),
         len: assignments_len + 1,
@@ -104,7 +103,7 @@ fn create_buffers_for_computing_assigments<MC: ManagerConfigs> (
         is_freed: true,
 
         read_event: Event::new(),
-        write_event: Event::new()
+        write_event: Event::new(),
     };
 
     all_assignments.async_exec_op(
@@ -112,24 +111,21 @@ fn create_buffers_for_computing_assigments<MC: ManagerConfigs> (
         None,
         Some(Fr::zero()),
         0..1,
-        crate::cuda_bindings::Operation::SetValue
+        crate::cuda_bindings::Operation::SetValue,
     )?;
 
     Ok((state_polys, variables, all_assignments))
 }
 
-pub(crate) fn copy_input_assigments_to_state_polys<
-    S: SynthesisMode,
-    MC: ManagerConfigs
-> (
+pub(crate) fn copy_input_assigments_to_state_polys<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
-    state_polynomials: &mut Vec<DeviceBuf<Fr>>
+    state_polynomials: &mut Vec<DeviceBuf<Fr>>,
 ) -> GpuResult<()> {
     let num_input_assignments = assembly.input_assingments.len();
     if num_input_assignments < 1 {
         return Ok(());
-    }    
+    }
     let input_assignments = assembly.input_assingments.as_ptr();
 
     unsafe {
@@ -137,7 +133,7 @@ pub(crate) fn copy_input_assigments_to_state_polys<
             &mut manager.ctx[0],
             input_assignments,
             0..num_input_assignments,
-            num_input_assignments
+            num_input_assignments,
         )?;
     }
 
@@ -147,35 +143,32 @@ pub(crate) fn copy_input_assigments_to_state_polys<
             None,
             Some(Fr::zero()),
             0..num_input_assignments,
-            crate::cuda_bindings::Operation::SetValue
+            crate::cuda_bindings::Operation::SetValue,
         )?;
     }
 
     Ok(())
 }
 
-pub(crate) fn copy_assigments_to_assigments_poly<
-    S: SynthesisMode,
-    MC: ManagerConfigs
-> (
+pub(crate) fn copy_assigments_to_assigments_poly<S: SynthesisMode, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,
-    all_assignments: &mut DeviceBuf<Fr>
+    all_assignments: &mut DeviceBuf<Fr>,
 ) -> GpuResult<()> {
     let num_input_assignments = assembly.input_assingments.len();
     let input_assignments = assembly.input_assingments.as_ptr();
-    
+
     if num_input_assignments > 0 {
         unsafe {
             all_assignments.async_copy_from_pointer_and_len(
                 &mut manager.ctx[0],
                 input_assignments,
                 1..(num_input_assignments + 1),
-                num_input_assignments
+                num_input_assignments,
             )?
         }
     }
-   
+
     let num_aux_assignments = assembly.aux_assingments.len();
     let aux_assignments = assembly.aux_assingments.as_ptr();
     let start = num_input_assignments + 1;
@@ -185,26 +178,24 @@ pub(crate) fn copy_assigments_to_assigments_poly<
             &mut manager.ctx[0],
             aux_assignments,
             start..(num_aux_assignments + start),
-            num_aux_assignments
+            num_aux_assignments,
         )?
     }
 
     Ok(())
 }
 
-pub(crate) fn split_variables_and_schedule_computation<MC: ManagerConfigs> (
+pub(crate) fn split_variables_and_schedule_computation<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     state_polys: &mut Vec<DeviceBuf<Fr>>,
     variables: DeviceBuf<u32>,
     all_assignments: &mut DeviceBuf<Fr>,
-    num_input_gates: usize
+    num_input_gates: usize,
 ) -> GpuResult<()> {
     let mut variables = variables.split_any_buf(4);
 
     for poly_idx in 0..4 {
-        variables[poly_idx].ptr = unsafe {
-            variables[poly_idx].ptr.add(num_input_gates)
-        };
+        variables[poly_idx].ptr = unsafe { variables[poly_idx].ptr.add(num_input_gates) };
         variables[poly_idx].len -= num_input_gates;
 
         assign_variables(
@@ -219,7 +210,7 @@ pub(crate) fn split_variables_and_schedule_computation<MC: ManagerConfigs> (
     Ok(())
 }
 
-fn copy_single_variables<MC: ManagerConfigs> (
+fn copy_single_variables<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     worker: &Worker,
     host_variables: &Vec<Variable>,
@@ -256,7 +247,7 @@ pub fn assign_variables<MC: ManagerConfigs>(
     state_polys: &mut DeviceBuf<Fr>,
     variables: &mut DeviceBuf<u32>,
     assigments: &mut DeviceBuf<Fr>,
-    num_input_gates: usize
+    num_input_gates: usize,
 ) -> GpuResult<()> {
     let device_id = manager.ctx[0].device_id();
     let stream = &mut manager.ctx[0].exec_stream;
@@ -269,16 +260,10 @@ pub fn assign_variables<MC: ManagerConfigs>(
     let result = state_polys.as_mut_ptr(num_input_gates..length) as *mut c_void;
     let variables = variables.as_ptr(0..length);
     let assigments = assigments.as_ptr(0..0) as *const c_void;
-    
+
     set_device(device_id)?;
     unsafe {
-        let result = ff_select(
-            assigments,
-            result,
-            variables,
-            length as u32,
-            stream.inner,
-        );
+        let result = ff_select(assigments, result, variables, length as u32, stream.inner);
         if result != 0 {
             return Err(GpuError::FFAssignErr(result));
         };
@@ -288,7 +273,7 @@ pub fn assign_variables<MC: ManagerConfigs>(
     Ok(())
 }
 
-fn final_copying_to_slots<MC: ManagerConfigs> (
+fn final_copying_to_slots<MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     state_polys: &mut Vec<DeviceBuf<Fr>>,
 ) -> GpuResult<()> {
@@ -302,7 +287,7 @@ fn final_copying_to_slots<MC: ManagerConfigs> (
                 &mut manager.ctx[0],
                 &mut state_polys[poly_idx],
                 0..MC::SLOT_SIZE,
-                start..end
+                start..end,
             )?;
         }
     }
@@ -310,8 +295,8 @@ fn final_copying_to_slots<MC: ManagerConfigs> (
     Ok(())
 }
 
-fn wait_events_before_computing_assigments<MC: ManagerConfigs> (
-    manager: &mut DeviceMemoryManager<Fr, MC>
+fn wait_events_before_computing_assigments<MC: ManagerConfigs>(
+    manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> GpuResult<()> {
     for slot in manager.slots.iter_mut().skip(4) {
         manager.ctx[0].h2d_stream.wait(slot.0[0].read_event())?;
@@ -321,8 +306,8 @@ fn wait_events_before_computing_assigments<MC: ManagerConfigs> (
     Ok(())
 }
 
-fn write_events_after_computing_assigments<MC: ManagerConfigs> (
-    manager: &mut DeviceMemoryManager<Fr, MC>
+fn write_events_after_computing_assigments<MC: ManagerConfigs>(
+    manager: &mut DeviceMemoryManager<Fr, MC>,
 ) -> GpuResult<()> {
     for slot in manager.slots.iter_mut().skip(4) {
         slot.0[0].write_event.record(&manager.ctx[0].exec_stream());

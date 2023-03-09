@@ -2,16 +2,13 @@ use super::*;
 
 impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     pub fn msm(&mut self, id: PolyId) -> GpuResult<MSMHandle> {
-        let idx = self.get_slot_idx(id, PolyForm::Monomial)
+        let idx = self
+            .get_slot_idx(id, PolyForm::Monomial)
             .expect(&format!("No such polynomial in monomial form: {:?}", id));
 
         let mut res_buffers = vec![];
         for device_id in 0..MC::NUM_GPUS {
-            res_buffers.push(
-                self.slots[idx].0[device_id].msm(
-                    &mut self.ctx[device_id]
-                )?
-            );
+            res_buffers.push(self.slots[idx].0[device_id].msm(&mut self.ctx[device_id])?);
         }
 
         Ok(MSMHandle::from_buffers(res_buffers))
@@ -25,16 +22,26 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         self.ntt(id, bits_reversed, device_id, true, None, None, true)
     }
 
-    pub fn fft_to_free_slot(&mut self, id: PolyId, bits_reversed: bool, device_id: usize) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+    pub fn fft_to_free_slot(
+        &mut self,
+        id: PolyId,
+        bits_reversed: bool,
+        device_id: usize,
+    ) -> GpuResult<()> {
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             self.clone_slot_on_device(id, PolyForm::Monomial)?;
         }
         self.fft(id, bits_reversed, device_id)
     }
 
-    pub fn ifft_to_free_slot(&mut self, id: PolyId, bits_reversed: bool, device_id: usize) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+    pub fn ifft_to_free_slot(
+        &mut self,
+        id: PolyId,
+        bits_reversed: bool,
+        device_id: usize,
+    ) -> GpuResult<()> {
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             self.clone_slot_on_device(id, PolyForm::Values)?;
         }
@@ -42,11 +49,24 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn coset_fft(&mut self, id: PolyId, coset_idx: usize, device_id: usize) -> GpuResult<()> {
-        self.ntt(id, false, device_id, false, Some(coset_idx), Some(LDE_FACTOR as u32), false)
+        self.ntt(
+            id,
+            false,
+            device_id,
+            false,
+            Some(coset_idx),
+            Some(LDE_FACTOR as u32),
+            false,
+        )
     }
 
-    pub fn coset_fft_to_free_slot(&mut self, id: PolyId, coset_idx: usize, device_id: usize) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+    pub fn coset_fft_to_free_slot(
+        &mut self,
+        id: PolyId,
+        coset_idx: usize,
+        device_id: usize,
+    ) -> GpuResult<()> {
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             self.clone_slot_on_device(id, PolyForm::Monomial)?;
         }
@@ -54,12 +74,12 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn ntt(
-        &mut self, 
-        id: PolyId, 
-        bits_reversed: bool, 
-        device_id: usize, 
-        inverse: bool, 
-        coset_index: Option<usize>, 
+        &mut self,
+        id: PolyId,
+        bits_reversed: bool,
+        device_id: usize,
+        inverse: bool,
+        coset_index: Option<usize>,
         lde_factor: Option<u32>,
         final_bitreverse: bool,
     ) -> GpuResult<()> {
@@ -77,22 +97,35 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             }
         }
 
-        assert!(device_id < MC::NUM_GPUS,
-            "Device id is {}, while number of gpus is {}", device_id, MC::NUM_GPUS);
-        assert!(self.get_slot_idx(id, dst_form).is_none(), "There is already such polynomial in such form: {:?} {:?}", id, dst_form);
-        let idx = self.get_slot_idx(id, src_form)
-            .expect(&format!("No such polynomial in such form {:?} {:?}", id, src_form));
+        assert!(
+            device_id < MC::NUM_GPUS,
+            "Device id is {}, while number of gpus is {}",
+            device_id,
+            MC::NUM_GPUS
+        );
+        assert!(
+            self.get_slot_idx(id, dst_form).is_none(),
+            "There is already such polynomial in such form: {:?} {:?}",
+            id,
+            dst_form
+        );
+        let idx = self.get_slot_idx(id, src_form).expect(&format!(
+            "No such polynomial in such form {:?} {:?}",
+            id, src_form
+        ));
 
-        let big_slot_idx = self.get_free_big_slot_idx(MC::NUM_GPUS).expect("there is no N free slots in a raw");
+        let big_slot_idx = self
+            .get_free_big_slot_idx(MC::NUM_GPUS)
+            .expect("there is no N free slots in a raw");
 
         for i in 0..MC::NUM_GPUS {
             let (slot, big_slot) = get_two_mut(&mut self.slots, idx, big_slot_idx + i);
 
             slot.0[i].async_copy_to_device(
-                &mut self.ctx[device_id], 
-                &mut big_slot.0[device_id], 
-                0..MC::SLOT_SIZE, 
-                0..MC::SLOT_SIZE
+                &mut self.ctx[device_id],
+                &mut big_slot.0[device_id],
+                0..MC::SLOT_SIZE,
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -104,16 +137,24 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             big_buffer.push(&mut buffer[0].0[device_id]);
         }
 
-        DeviceBuf::ntt(&mut big_buffer, &mut self.ctx[device_id], bits_reversed, inverse, coset_index, lde_factor, final_bitreverse)?;
+        DeviceBuf::ntt(
+            &mut big_buffer,
+            &mut self.ctx[device_id],
+            bits_reversed,
+            inverse,
+            coset_index,
+            lde_factor,
+            final_bitreverse,
+        )?;
 
         for i in 0..MC::NUM_GPUS {
             let (slot, big_slot) = get_two_mut(&mut self.slots, idx, big_slot_idx + i);
 
             big_slot.0[device_id].async_copy_to_device(
-                &mut self.ctx[device_id], 
-                &mut slot.0[i], 
-                0..MC::SLOT_SIZE, 
-                0..MC::SLOT_SIZE
+                &mut self.ctx[device_id],
+                &mut slot.0[i],
+                0..MC::SLOT_SIZE,
+                0..MC::SLOT_SIZE,
             )?;
         }
 
@@ -121,9 +162,6 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
 
         Ok(())
     }
-
-
-
 
     pub fn multigpu_fft(&mut self, id: PolyId, bits_reversed: bool) -> GpuResult<()> {
         self.multigpu_ntt(id, bits_reversed, false, None, None, true)
@@ -134,7 +172,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn multigpu_fft_to_free_slot(&mut self, id: PolyId, bits_reversed: bool) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             self.clone_slot_on_device(id, PolyForm::Monomial)?;
         }
@@ -142,7 +180,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn multigpu_ifft_to_free_slot(&mut self, id: PolyId, bits_reversed: bool) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             self.clone_slot_on_device(id, PolyForm::Values)?;
         }
@@ -150,11 +188,22 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn multigpu_coset_fft(&mut self, id: PolyId, coset_idx: usize) -> GpuResult<()> {
-        self.multigpu_ntt(id, false, false, Some(coset_idx), Some(LDE_FACTOR as u32), false)
+        self.multigpu_ntt(
+            id,
+            false,
+            false,
+            Some(coset_idx),
+            Some(LDE_FACTOR as u32),
+            false,
+        )
     }
 
-    pub fn multigpu_coset_fft_to_free_slot(&mut self, id: PolyId, coset_idx: usize) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+    pub fn multigpu_coset_fft_to_free_slot(
+        &mut self,
+        id: PolyId,
+        coset_idx: usize,
+    ) -> GpuResult<()> {
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             self.clone_slot_on_device(id, PolyForm::Monomial)?;
         }
@@ -162,15 +211,22 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn multigpu_coset_ifft(&mut self, id: PolyId, coset_idx: usize) -> GpuResult<()> {
-        self.multigpu_ntt(id, true, true, Some(coset_idx), Some(LDE_FACTOR as u32), false)
+        self.multigpu_ntt(
+            id,
+            true,
+            true,
+            Some(coset_idx),
+            Some(LDE_FACTOR as u32),
+            false,
+        )
     }
 
     pub fn multigpu_ntt(
-        &mut self, 
-        id: PolyId, 
-        bits_reversed: bool, 
-        inverse: bool, 
-        coset_index: Option<usize>, 
+        &mut self,
+        id: PolyId,
+        bits_reversed: bool,
+        inverse: bool,
+        coset_index: Option<usize>,
         lde_factor: Option<u32>,
         final_bitreverse: bool,
     ) -> GpuResult<()> {
@@ -188,11 +244,26 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             }
         }
 
-        assert!(self.get_slot_idx(id, dst_form).is_none(), "There is already such polynomial in such form: {:?} {:?}", id, dst_form);
-        let idx = self.get_slot_idx(id, src_form)
-            .expect(&format!("No such polynomial in such form {:?} {:?}", id, src_form));
+        assert!(
+            self.get_slot_idx(id, dst_form).is_none(),
+            "There is already such polynomial in such form: {:?} {:?}",
+            id,
+            dst_form
+        );
+        let idx = self.get_slot_idx(id, src_form).expect(&format!(
+            "No such polynomial in such form {:?} {:?}",
+            id, src_form
+        ));
 
-        DeviceBuf::multigpu_ntt(&mut self.slots[idx].0, &mut self.ctx, bits_reversed, inverse, coset_index, lde_factor, final_bitreverse)?;
+        DeviceBuf::multigpu_ntt(
+            &mut self.slots[idx].0,
+            &mut self.ctx,
+            bits_reversed,
+            inverse,
+            coset_index,
+            lde_factor,
+            final_bitreverse,
+        )?;
 
         self.slots[idx].1 = SlotStatus::Busy(id, dst_form);
 
@@ -200,23 +271,55 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn parallel_ffts(&mut self, ids: Vec<PolyId>, bits_reversed: bool) -> GpuResult<()> {
-        self.parallel_ntts(ids, vec![bits_reversed, bits_reversed], vec![false, false], None, None, true)
+        self.parallel_ntts(
+            ids,
+            vec![bits_reversed, bits_reversed],
+            vec![false, false],
+            None,
+            None,
+            true,
+        )
     }
 
     pub fn parallel_iffts(&mut self, ids: Vec<PolyId>, bits_reversed: bool) -> GpuResult<()> {
-        self.parallel_ntts(ids, vec![bits_reversed, bits_reversed], vec![true, true], None, None, true)
+        self.parallel_ntts(
+            ids,
+            vec![bits_reversed, bits_reversed],
+            vec![true, true],
+            None,
+            None,
+            true,
+        )
     }
 
     pub fn parallel_ifft_fft(&mut self, ids: Vec<PolyId>, bits_reversed: bool) -> GpuResult<()> {
-        self.parallel_ntts(ids, vec![bits_reversed, bits_reversed], vec![true, false], None, None, true)
+        self.parallel_ntts(
+            ids,
+            vec![bits_reversed, bits_reversed],
+            vec![true, false],
+            None,
+            None,
+            true,
+        )
     }
 
     pub fn parallel_coset_ffts(&mut self, ids: Vec<PolyId>, coset_idx: usize) -> GpuResult<()> {
-        self.parallel_ntts(ids, vec![false, false], vec![false, false], Some(coset_idx), Some(LDE_FACTOR as u32), false)
+        self.parallel_ntts(
+            ids,
+            vec![false, false],
+            vec![false, false],
+            Some(coset_idx),
+            Some(LDE_FACTOR as u32),
+            false,
+        )
     }
 
-    pub fn parallel_iffts_to_free_slot(&mut self, ids: Vec<PolyId>, bits_reversed: bool) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+    pub fn parallel_iffts_to_free_slot(
+        &mut self,
+        ids: Vec<PolyId>,
+        bits_reversed: bool,
+    ) -> GpuResult<()> {
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             for id in ids.iter() {
                 self.clone_slot_on_device(*id, PolyForm::Values)?;
@@ -225,8 +328,12 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         self.parallel_iffts(ids, bits_reversed)
     }
 
-    pub fn parallel_ffts_to_free_slot(&mut self, ids: Vec<PolyId>, bits_reversed: bool) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+    pub fn parallel_ffts_to_free_slot(
+        &mut self,
+        ids: Vec<PolyId>,
+        bits_reversed: bool,
+    ) -> GpuResult<()> {
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             for id in ids.iter() {
                 self.clone_slot_on_device(*id, PolyForm::Monomial)?;
@@ -235,8 +342,12 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         self.parallel_ffts(ids, bits_reversed)
     }
 
-    pub fn parallel_ifft_fft_to_free_slot(&mut self, ids: Vec<PolyId>, bits_reversed: bool) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+    pub fn parallel_ifft_fft_to_free_slot(
+        &mut self,
+        ids: Vec<PolyId>,
+        bits_reversed: bool,
+    ) -> GpuResult<()> {
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             for (i, id) in ids.iter().enumerate() {
                 let mut src_form = PolyForm::Values;
@@ -249,8 +360,12 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         self.parallel_ifft_fft(ids, bits_reversed)
     }
 
-    pub fn parallel_coset_ffts_to_free_slot(&mut self, ids: Vec<PolyId>, coset_idx: usize) -> GpuResult<()> {
-        // SAFETY: one of polynomials with the same status is immediately replaced
+    pub fn parallel_coset_ffts_to_free_slot(
+        &mut self,
+        ids: Vec<PolyId>,
+        coset_idx: usize,
+    ) -> GpuResult<()> {
+        // SAFETY: one of polynomials with the same status is imediately replased
         unsafe {
             for id in ids.iter() {
                 self.clone_slot_on_device(*id, PolyForm::Monomial)?;
@@ -260,26 +375,35 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
     }
 
     pub fn parallel_ntts(
-        &mut self, 
-        ids: Vec<PolyId>, 
-        bits_reversed: Vec<bool>, 
+        &mut self,
+        ids: Vec<PolyId>,
+        bits_reversed: Vec<bool>,
         inverse: Vec<bool>,
-        coset_index: Option<usize>, 
+        coset_index: Option<usize>,
         lde_factor: Option<u32>,
         final_bitreverse: bool,
     ) -> GpuResult<()> {
         let num_ffts = ids.len();
 
-        assert!(ids.len() <= MC::NUM_GPUS,
-            "Device id is {}, while number of gpus is {}", ids.len(), MC::NUM_GPUS);
-        assert!(num_ffts <= MC::NUM_GPUS, "number of ffts is biger than number of gpus");
+        assert!(
+            ids.len() <= MC::NUM_GPUS,
+            "Device id is {}, while number of gpus is {}",
+            ids.len(),
+            MC::NUM_GPUS
+        );
+        assert!(
+            num_ffts <= MC::NUM_GPUS,
+            "number of ffts is biger than number of gpus"
+        );
         for i in 0..(num_ffts - 1) {
-            for j in (i+1)..num_ffts {
+            for j in (i + 1)..num_ffts {
                 assert_ne!(ids[i], ids[j], "ids in parallel ffts be different");
             }
         }
 
-        let big_slot_idx = self.get_free_big_slot_idx(MC::NUM_GPUS).expect("there is no N free slots in a raw");
+        let big_slot_idx = self
+            .get_free_big_slot_idx(MC::NUM_GPUS)
+            .expect("there is no N free slots in a raw");
 
         for device_id in 0..num_ffts {
             let mut src_form = PolyForm::Monomial;
@@ -296,18 +420,25 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 }
             }
 
-            assert!(self.get_slot_idx(ids[device_id], dst_form).is_none(), "There is already such polynomial in such form {:?} {:?}", ids[device_id], dst_form);
-            let idx = self.get_slot_idx(ids[device_id], src_form)
-                .expect(&format!("No such polynomial in such form {:?} {:?}", ids[device_id], src_form));
-           
+            assert!(
+                self.get_slot_idx(ids[device_id], dst_form).is_none(),
+                "There is already such polynomial in such form {:?} {:?}",
+                ids[device_id],
+                dst_form
+            );
+            let idx = self.get_slot_idx(ids[device_id], src_form).expect(&format!(
+                "No such polynomial in such form {:?} {:?}",
+                ids[device_id], src_form
+            ));
+
             for i in 0..MC::NUM_GPUS {
                 let (slot, big_slot) = get_two_mut(&mut self.slots, idx, big_slot_idx + i);
-    
+
                 slot.0[i].async_copy_to_device(
-                    &mut self.ctx[device_id], 
-                    &mut big_slot.0[device_id], 
-                    0..MC::SLOT_SIZE, 
-                    0..MC::SLOT_SIZE
+                    &mut self.ctx[device_id],
+                    &mut big_slot.0[device_id],
+                    0..MC::SLOT_SIZE,
+                    0..MC::SLOT_SIZE,
                 )?;
             }
 
@@ -318,17 +449,25 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
                 (buffer, buffers_slice) = buffers_slice.split_at_mut(1);
                 big_buffer.push(&mut buffer[0].0[device_id]);
             }
-    
-            DeviceBuf::ntt(&mut big_buffer, &mut self.ctx[device_id], bits_reversed[device_id], inverse[device_id], coset_index, lde_factor, final_bitreverse)?;
-    
+
+            DeviceBuf::ntt(
+                &mut big_buffer,
+                &mut self.ctx[device_id],
+                bits_reversed[device_id],
+                inverse[device_id],
+                coset_index,
+                lde_factor,
+                final_bitreverse,
+            )?;
+
             for i in 0..MC::NUM_GPUS {
                 let (slot, big_slot) = get_two_mut(&mut self.slots, idx, big_slot_idx + i);
-    
+
                 big_slot.0[device_id].async_copy_to_device(
-                    &mut self.ctx[device_id], 
-                    &mut slot.0[i], 
-                    0..MC::SLOT_SIZE, 
-                    0..MC::SLOT_SIZE
+                    &mut self.ctx[device_id],
+                    &mut slot.0[i],
+                    0..MC::SLOT_SIZE,
+                    0..MC::SLOT_SIZE,
                 )?;
             }
 
@@ -338,30 +477,213 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         Ok(())
     }
 
+    // pub fn fft(&mut self, id: PolyId, bits_reversed: bool, device_id: usize) -> Result<(), GpuError> {
+    //     set_device(device_id);
+    //     assert!(self.get_slot_event_and_idx(id, PolyForm::Values).is_none(), "There is already such polynomial in values form");
+    //     let (event, idx) = self.get_slot_event_and_idx(id, PolyForm::Monomial)
+    //         .expect("No such polynomial in monomial form");
+    //     self.ctx[device_id].get_exec_stream().wait(event)?;
+
+    //     let len = SLOT_SIZE * FIELD_ELEMENT_LEN;
+    //     let d_scalars = self.slots[idx].as_mut_ptr();
+    //     raw_ntt(
+    //         self.ctx[device_id].as_ref(),
+    //         d_scalars as *mut c_void,
+    //         len,
+    //         bits_reversed,
+    //         false,
+    //     )?;
+
+    //     let new_event = bc_event::new()?;
+    //     new_event.record(self.ctx[device_id].get_exec_stream())?;
+    //     self.slots_status[idx] = SlotStatus::Busy(id, PolyForm::Values, new_event);
+
+    //     Ok(())
+    // }
+
+    // pub fn fft_to_free_slot(&mut self, id: PolyId, bits_reversed: bool, device_id: usize) -> Result<(), GpuError> {
+    //     // SAFETY: one of polynomials with the same status is imediately replased
+    //     unsafe {
+    //         self.clone_slot_on_device(id, PolyForm::Monomial, device_id)?;
+    //     }
+    //     self.fft(id, bits_reversed, device_id)
+    // }
+
+    // pub fn ifft(&mut self, id: PolyId, bits_reversed: bool, device_id: usize) -> Result<(), GpuError> {
+    //     set_device(device_id);
+    //     assert!(self.get_slot_event_and_idx(id, PolyForm::Monomial).is_none(), "There is already such polynomial in monomial form");
+    //     let (event, idx) = self.get_slot_event_and_idx(id, PolyForm::Values)
+    //         .expect("No such polynomial in values form");
+    //     self.ctx[device_id].get_exec_stream().wait(event)?;
+
+    //     let len = SLOT_SIZE * FIELD_ELEMENT_LEN;
+    //     let d_scalars = self.slots[idx].as_mut_ptr();
+    //     raw_ntt(
+    //         self.ctx[device_id].as_ref(),
+    //         d_scalars as *mut c_void,
+    //         len,
+    //         bits_reversed,
+    //         true,
+    //     )?;
+
+    //     let new_event = bc_event::new()?;
+    //     new_event.record(self.ctx[device_id].get_exec_stream())?;
+    //     self.slots_status[idx] = SlotStatus::Busy(id, PolyForm::Monomial, new_event);
+
+    //     Ok(())
+    // }
+
+    // pub fn ifft_to_free_slot(&mut self, id: PolyId, bits_reversed: bool, device_id: usize) -> Result<(), GpuError> {
+    //     // SAFETY: one of polynomials with the same status is imediately replased
+    //     unsafe {
+    //         self.clone_slot_on_device(id, PolyForm::Values, device_id)?;
+    //     }
+    //     self.ifft(id, bits_reversed, device_id)
+    // }
+
+    // pub fn coset_fft(&mut self, id: PolyId, coset_idx: usize, device_id: usize) -> Result<(), GpuError> {
+    //     set_device(device_id);
+    //     assert!(self.get_slot_event_and_idx(id, PolyForm::LDE(coset_idx)).is_none(), "There is already such polynomial in such lde form");
+    //     let (event, idx) = self.get_slot_event_and_idx(id, PolyForm::Monomial)
+    //         .expect("No such polynomial in monomial form");
+    //     self.ctx[device_id].get_exec_stream().wait(event)?;
+
+    //     let len = SLOT_SIZE * FIELD_ELEMENT_LEN;
+    //     let d_scalars = self.slots[idx].as_mut_ptr();
+    //     raw_coset_ntt(
+    //         self.ctx[device_id].as_ref(),
+    //         d_scalars as *mut c_void,
+    //         len,
+    //         LDE_FACTOR as u32,
+    //         coset_idx,
+    //         false,
+    //     )?;
+
+    //     let new_event = bc_event::new()?;
+    //     new_event.record(self.ctx[device_id].get_exec_stream())?;
+    //     self.slots_status[idx] = SlotStatus::Busy(id, PolyForm::LDE(coset_idx), new_event);
+
+    //     Ok(())
+    // }
+
+    // pub fn coset_fft_to_free_slot(&mut self, id: PolyId, coset_idx: usize, device_id: usize) -> Result<(), GpuError> {
+    //     // SAFETY: one of polynomials with the same status is imediately replased
+    //     unsafe {
+    //         self.clone_slot_on_device(id, PolyForm::Monomial, device_id)?;
+    //     }
+    //     self.coset_fft(id, coset_idx, device_id)
+    // }
+
+    // pub fn coset_fft_to_free_big_slot_part(&mut self, id: PolyId, coset_idx: usize, device_id: usize) -> Result<(), GpuError> {
+    //     set_device(device_id);
+    //     let (event, idx) = self.get_slot_event_and_idx(id, PolyForm::Monomial).expect("No such polynomial in monomial form");
+    //     self.ctx[device_id].get_exec_stream().wait(event)?;
+    //     assert!(
+    //         self.get_slot_event_and_idx(id, PolyForm::LDE(coset_idx)).is_none(),
+    //         "There is already such polynomial in such lde form"
+    //     );
+    //     let big_slot_idx = self.big_slot_idx.expect("Big slot is not allocated yet");
+    //     let new_idx = big_slot_idx + coset_idx;
+
+    //     match self.slots_status[new_idx] {
+    //         SlotStatus::Free(event) => self.ctx[device_id].get_exec_stream().wait(event)?,
+    //         SlotStatus::NotAllocated => unreachable!(),
+    //         _ => panic!("This part of big slot is not free")
+    //     }
+
+    //     let mut dest = self.slots[new_idx].clone();
+    //     self.slots[idx].d2d(self.ctx[device_id].clone(), &mut dest)?;
+
+    //     let new_event = bc_event::new()?;
+    //     new_event.record(self.ctx[device_id].get_exec_stream())?;
+
+    //     self.slots_status[idx] = SlotStatus::Busy(id, PolyForm::Monomial, new_event);
+
+    //     let len = SLOT_SIZE * FIELD_ELEMENT_LEN;
+    //     let d_scalars = self.slots[new_idx].as_mut_ptr();
+    //     raw_coset_ntt(
+    //         self.ctx[device_id].as_ref(),
+    //         d_scalars as *mut c_void,
+    //         len,
+    //         LDE_FACTOR as u32,
+    //         coset_idx,
+    //         false,
+    //     )?;
+
+    //     let new_event = bc_event::new()?;
+    //     new_event.record(self.ctx[device_id].get_exec_stream())?;
+    //     self.slots_status[new_idx] = SlotStatus::Busy(id, PolyForm::LDE(coset_idx), new_event);
+
+    //     Ok(())
+    // }
+
+    // pub fn coset_ifft(&mut self, id: PolyId, coset_idx: usize, device_id: usize) -> Result<(), GpuError> {
+    //     set_device(device_id);
+    //     assert!(self.get_slot_event_and_idx(id, PolyForm::Monomial).is_none(), "There is already such polynomial in such lde form");
+    //     let (event, idx) = self.get_slot_event_and_idx(id, PolyForm::LDE(coset_idx))
+    //         .expect("No such polynomial in monomial form");
+    //     self.ctx[device_id].get_exec_stream().wait(event)?;
+
+    //     let len = SLOT_SIZE * FIELD_ELEMENT_LEN;
+    //     let d_scalars = self.slots[idx].as_mut_ptr();
+    //     raw_coset_ntt(
+    //         self.ctx[device_id].as_ref(),
+    //         d_scalars as *mut c_void,
+    //         len,
+    //         LDE_FACTOR as u32,
+    //         coset_idx,
+    //         true,
+    //     )?;
+
+    //     let new_event = bc_event::new()?;
+    //     new_event.record(self.ctx[device_id].get_exec_stream())?;
+    //     self.slots_status[idx] = SlotStatus::Busy(id, PolyForm::Monomial, new_event);
+
+    //     Ok(())
+    // }
+
+    // pub fn coset_ifft_to_free_slot(&mut self, id: PolyId, coset_idx: usize, device_id: usize) -> Result<(), GpuError> {
+    //     // SAFETY: one of polynomials with the same status is imediately replased
+    //     unsafe {
+    //         self.clone_slot_on_device(id, PolyForm::LDE(coset_idx), device_id)?;
+    //     }
+    //     self.coset_ifft(id, coset_idx, device_id)
+    // }
+
     pub fn coset_4n_ifft(&mut self, ids: [PolyId; 4], device_id: usize) -> GpuResult<()> {
         for i in 0..3 {
-            for j in (i+1)..4 {
+            for j in (i + 1)..4 {
                 assert_ne!(ids[i], ids[j], "ids in 4n-ifft should be different");
             }
         }
 
-        let big_slot_idx = self.get_free_big_slot_idx(4 * MC::NUM_GPUS).expect("there is no N free slots in a raw");
+        let big_slot_idx = self
+            .get_free_big_slot_idx(4 * MC::NUM_GPUS)
+            .expect("there is no N free slots in a raw");
 
         for coset_idx in 0..4 {
-            assert!(self.get_slot_idx(ids[coset_idx], PolyForm::Monomial).is_none(),
-                "There is already such polynomial in monomial form: {:?}", ids[coset_idx]);
-            let idx = self.get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
-                .expect(&format!("No such polynomial in such lde form: {:?}", ids[coset_idx]));
+            assert!(
+                self.get_slot_idx(ids[coset_idx], PolyForm::Monomial)
+                    .is_none(),
+                "There is already such polynomial in monomial form: {:?}",
+                ids[coset_idx]
+            );
+            let idx = self
+                .get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
+                .expect(&format!(
+                    "No such polynomial in such lde form: {:?}",
+                    ids[coset_idx]
+                ));
 
             for i in 0..MC::NUM_GPUS {
                 let numb = big_slot_idx + i + coset_idx * MC::NUM_GPUS;
                 let (slot, big_slot) = get_two_mut(&mut self.slots, idx, numb);
 
                 slot.0[i].async_copy_to_device(
-                    &mut self.ctx[device_id], 
-                    &mut big_slot.0[device_id], 
-                    0..MC::SLOT_SIZE, 
-                    0..MC::SLOT_SIZE
+                    &mut self.ctx[device_id],
+                    &mut big_slot.0[device_id],
+                    0..MC::SLOT_SIZE,
+                    0..MC::SLOT_SIZE,
                 )?;
             }
         }
@@ -374,44 +696,63 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             big_buffer.push(&mut buffer[0].0[device_id]);
         }
 
-        DeviceBuf::ntt(&mut big_buffer, &mut self.ctx[device_id], true, true, None, None, false)?;
-
+        DeviceBuf::ntt(
+            &mut big_buffer,
+            &mut self.ctx[device_id],
+            true,
+            true,
+            None,
+            None,
+            false,
+        )?;
 
         for coset_idx in 0..4 {
-            let idx = self.get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
-                .expect(&format!("No such polynomial in such lde form: {:?}", ids[coset_idx]));
+            let idx = self
+                .get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
+                .expect(&format!(
+                    "No such polynomial in such lde form: {:?}",
+                    ids[coset_idx]
+                ));
 
             for i in 0..MC::NUM_GPUS {
                 let numb = big_slot_idx + i + coset_idx * MC::NUM_GPUS;
                 let (slot, big_slot) = get_two_mut(&mut self.slots, idx, numb);
 
                 slot.0[i].async_copy_from_device(
-                    &mut self.ctx[device_id], 
-                    &mut big_slot.0[device_id], 
-                    0..MC::SLOT_SIZE, 
-                    0..MC::SLOT_SIZE
+                    &mut self.ctx[device_id],
+                    &mut big_slot.0[device_id],
+                    0..MC::SLOT_SIZE,
+                    0..MC::SLOT_SIZE,
                 )?;
             }
-    
+
             self.slots[idx].1 = SlotStatus::Busy(ids[coset_idx], PolyForm::Monomial);
         }
-        
+
         Ok(())
     }
 
     pub fn multigpu_coset_4n_ifft(&mut self, ids: [PolyId; 4]) -> GpuResult<()> {
         for i in 0..3 {
-            for j in (i+1)..4 {
+            for j in (i + 1)..4 {
                 assert_ne!(ids[i], ids[j], "ids in 4n-ifft should be different");
             }
         }
 
         let mut idxs = [0; 4];
         for coset_idx in 0..4 {
-            assert!(self.get_slot_idx(ids[coset_idx], PolyForm::Monomial).is_none(),
-                "There is already such polynomial in monomial form: {:?}", ids[coset_idx]);
-            let idx = self.get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
-                .expect(&format!("No such polynomial in such lde form: {:?}", ids[coset_idx]));
+            assert!(
+                self.get_slot_idx(ids[coset_idx], PolyForm::Monomial)
+                    .is_none(),
+                "There is already such polynomial in monomial form: {:?}",
+                ids[coset_idx]
+            );
+            let idx = self
+                .get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
+                .expect(&format!(
+                    "No such polynomial in such lde form: {:?}",
+                    ids[coset_idx]
+                ));
 
             idxs[coset_idx] = idx;
         }
@@ -423,18 +764,100 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
             for buf in slot.0.iter_mut() {
                 big_buffer.push(buf);
             }
-        }          
+        }
+        // let mut buffers_slice = &mut self.slots[idx];
 
+        // for i in 0..MC::NUM_GPUS {
+        //     let mut buffer: &mut [_] = &mut [];
+        //     (buffer, buffers_slice) = buffers_slice.split_at_mut(1);
+        //     big_buffer.push(&mut buffer[0].0[device_id]);
+        // }
+        // for slot in self.slots[idx].0.iter_mut() {
+        //     big_buffer.push(slot);
+        // }
+        // }
 
-        DeviceBuf::multigpu_4n_ntt(&mut big_buffer, &mut self.ctx, true, true, None, None, false)?;
+        // dbg!(big_buffer.len());
+
+        DeviceBuf::multigpu_4n_ntt(
+            &mut big_buffer,
+            &mut self.ctx,
+            true,
+            true,
+            None,
+            None,
+            false,
+        )?;
 
         for coset_idx in 0..4 {
-            let idx = self.get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
-                .expect(&format!("No such polynomial in such lde form: {:?}", ids[coset_idx]));
+            let idx = self
+                .get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
+                .expect(&format!(
+                    "No such polynomial in such lde form: {:?}",
+                    ids[coset_idx]
+                ));
 
             self.slots[idx].1 = SlotStatus::Busy(ids[coset_idx], PolyForm::Monomial);
         }
-        
+
         Ok(())
     }
+
+    // pub fn multigpu_coset_4n_ifft(&mut self, ids: [PolyId; 4]) -> GpuResult<()> {
+    //     for i in 0..3 {
+    //         for j in (i+1)..4 {
+    //             assert_ne!(ids[i], ids[j], "ids in 4n-ifft should be different");
+    //         }
+    //     }
+
+    //     for coset_idx in 0..4 {
+    //         assert!(self.get_slot_idx(ids[coset_idx], PolyForm::Monomial).is_none(),
+    //             "There is already such polynomial in monomial form: {:?}", ids[coset_idx]);
+    //         let idx = self.get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
+    //             .expect(&format!("No such polynomial in such lde form: {:?}", ids[coset_idx]));
+
+    //         for i in 0..MC::NUM_GPUS {
+    //             let numb = big_slot_idx + i + coset_idx * MC::NUM_GPUS;
+    //             let (slot, big_slot) = get_two_mut(&mut self.slots, idx, numb);
+
+    //             slot.0[i].async_copy_to_device(
+    //                 &mut self.ctx[device_id],
+    //                 &mut big_slot.0[device_id],
+    //                 0..MC::SLOT_SIZE,
+    //                 0..MC::SLOT_SIZE
+    //             )?;
+    //         }
+    //     }
+
+    //     let mut buffers_slice = &mut self.slots[(big_slot_idx)..(big_slot_idx + 4 * MC::NUM_GPUS)];
+    //     let mut big_buffer = vec![];
+    //     for _ in 0..(4 * MC::NUM_GPUS) {
+    //         let mut buffer: &mut [_] = &mut [];
+    //         (buffer, buffers_slice) = buffers_slice.split_at_mut(1);
+    //         big_buffer.push(&mut buffer[0].0[device_id]);
+    //     }
+
+    //     DeviceBuf::ntt(&mut big_buffer, &mut self.ctx[device_id], true, true, None, None, false)?;
+
+    //     for coset_idx in 0..4 {
+    //         let idx = self.get_slot_idx(ids[coset_idx], PolyForm::LDE(coset_idx))
+    //             .expect(&format!("No such polynomial in such lde form: {:?}", ids[coset_idx]));
+
+    //         for i in 0..MC::NUM_GPUS {
+    //             let numb = big_slot_idx + i + coset_idx * MC::NUM_GPUS;
+    //             let (slot, big_slot) = get_two_mut(&mut self.slots, idx, numb);
+
+    //             slot.0[i].async_copy_from_device(
+    //                 &mut self.ctx[device_id],
+    //                 &mut big_slot.0[device_id],
+    //                 0..MC::SLOT_SIZE,
+    //                 0..MC::SLOT_SIZE
+    //             )?;
+    //         }
+
+    //         self.slots[idx].1 = SlotStatus::Busy(ids[coset_idx], PolyForm::Monomial);
+    //     }
+
+    //     Ok(())
+    // }
 }

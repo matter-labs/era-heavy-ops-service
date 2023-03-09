@@ -131,7 +131,7 @@ impl_async_vec! {
 
             Ok(self.values.take().expect("async_vec inner is none"))
         }
-        
+
         #[cfg(not(feature = "allocator"))]
         pub fn into_inner(mut self) -> GpuResult<std::vec::Vec<T>> {
             self.read_event.sync()?;

@@ -19,7 +19,7 @@ fn main() {
     generate_bindings(&bellman_cuda_path);
 
     #[cfg(not(target_os = "macos"))]
-    link_multiexp_library(&bellman_cuda_path);
+    link_multiexp_library(&bellman_cuda_path); // FIXME enable
 }
 
 fn generate_bindings(bellman_cuda_path: &str) {

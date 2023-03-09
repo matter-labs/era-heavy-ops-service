@@ -12,14 +12,14 @@ impl Stream {
         let mut inner = bc_stream {
             handle: std::ptr::null_mut() as *mut c_void,
         };
-        unsafe{
+        unsafe {
             let result = bc_stream_create(addr_of_mut!(inner), true);
             if result != 0 {
                 return Err(GpuError::StremCreateErr(result));
             };
         }
 
-        Ok(Self{inner, device_id})
+        Ok(Self { inner, device_id })
     }
 
     pub fn wait(&mut self, event: &Event) -> GpuResult<()> {
@@ -29,7 +29,7 @@ impl Stream {
 
         for events in sub_events.iter() {
             for (_, event) in events.iter() {
-                unsafe{
+                unsafe {
                     let result = bc_stream_wait_event(self.inner, *event.as_ref());
                     if result != 0 {
                         return Err(GpuError::StreamWaitEventErr(result));
@@ -43,7 +43,7 @@ impl Stream {
 
     pub fn sync(&self) -> GpuResult<()> {
         set_device(self.device_id)?;
-        unsafe{
+        unsafe {
             let result = bc_stream_synchronize(self.inner);
             if result != 0 {
                 return Err(GpuError::StreamSyncErr(result));
@@ -61,7 +61,7 @@ impl Stream {
 impl Drop for Stream {
     fn drop(&mut self) {
         set_device(self.device_id).expect("during Stream dropping");
-        unsafe{
+        unsafe {
             let result = bc_stream_destroy(self.inner);
             if result != 0 {
                 println!("StreamDestroyErr({})", result);

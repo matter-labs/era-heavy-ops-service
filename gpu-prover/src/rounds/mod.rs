@@ -15,8 +15,8 @@ pub use round3::*;
 pub use round4::*;
 pub use round5::*;
 
-use utils::*;
 use bellman::plonk::commitments::transcript::Transcript;
+use utils::*;
 
 use super::*;
 
@@ -48,7 +48,7 @@ impl<F: PrimeField> Default for ProverConstants<F> {
             coset_omega: Default::default(),
             generator: Default::default(),
             non_residues: Default::default(),
-            
+
             eta: Default::default(),
             beta: Default::default(),
             gamma: Default::default(),

@@ -17,8 +17,6 @@ cfg_if! {
         pub use self::legacy::*;
     }
 }
-pub use bellman;
-
 #[cfg(feature = "gpu")]
 use std::alloc::Global;
 
@@ -30,7 +28,7 @@ use bellman::plonk::better_better_cs::cs::{
 };
 use bellman::plonk::better_better_cs::proof::Proof;
 use bellman::plonk::commitments::transcript::Transcript;
-use bellman::worker::Worker;
+use bellman::worker::Worker as OldWorker;
 use bellman::Engine;
 
 use std::path::Path;
@@ -76,7 +74,6 @@ pub type TrivialAssembly = Assembly<SynthesisModeTesting>;
 pub type ProvingAssembly = Assembly<SynthesisModeProve>;
 pub type SetupAssembly = Assembly<SynthesisModeGenerateSetup>;
 
-// specialized prover constants
 pub(crate) const CRS_FILE_ENV_VAR: &str = "CRS_FILE";
 pub(crate) const DOMAIN_SIZE_LOG: usize = 26;
 pub(crate) const DOMAIN_SIZE: usize = 1 << DOMAIN_SIZE_LOG;
@@ -115,10 +112,10 @@ impl Prover {
         SetupAssembly::new()
     }
 
-    pub fn new_worker(num_cores: Option<usize>) -> Worker {
+    pub fn new_worker(num_cores: Option<usize>) -> OldWorker {
         match num_cores {
-            Some(num_cores) => Worker::new_with_cpus(num_cores),
-            None => Worker::new(),
+            Some(num_cores) => OldWorker::new_with_cpus(num_cores),
+            None => OldWorker::new(),
         }
     }
 
@@ -215,7 +212,8 @@ impl Prover {
         assembly: &Assembly<S>,
     ) -> Result<AsyncSetup, SynthesisError> {
         assert!(assembly.is_finalized);
-        dbg!(Prover::get_max_domain_size_log());
+        dbg!(Prover::get_max_domain_size());
+        dbg!(assembly.n() + 1);
         assert!(assembly.n() + 1 <= Prover::get_max_domain_size());
 
         let setup = self.inner_create_setup_from_assembly::<C, _>(assembly)?;

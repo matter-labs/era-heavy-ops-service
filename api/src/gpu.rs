@@ -47,7 +47,7 @@ impl ManagerType {
 }
 
 pub struct ProverContext {
-    worker: Worker,
+    worker: OldWorker,
     manager: ManagerType,
     crs_for_verification: Crs<Bn256, CrsForMonomialForm>,
 }
@@ -65,7 +65,7 @@ impl ProverContext {
     }
 
     pub fn init_with_crs(device_ids: Option<&[usize]>, crs_file_path: &Path) -> Self {
-        let worker = Worker::new();
+        let worker = OldWorker::new();
         let crs_file = std::fs::File::open(&crs_file_path).expect("crs file to open");
         let crs = Crs::read(&crs_file).expect("crs file for bases");
         let crs_size = Prover::get_max_domain_size();
@@ -83,14 +83,14 @@ impl ProverContext {
         let transformed_crs = transform_crs(&crs, &worker);
         let manager = Self::init_manager(device_ids, &transformed_crs);
         Self {
-            worker,
+            worker: OldWorker::new_with_cpus(2),
             manager,
             crs_for_verification,
         }
     }
 
     pub fn init_with_dummy_crs() -> Self {
-        let worker = Worker::new();
+        let worker = OldWorker::new();
         let crs_size = Prover::get_max_domain_size();
         let crs = Crs::<Bn256, CrsForMonomialForm>::dummy_crs(crs_size);
         assert_eq!(crs.g1_bases.len(), crs_size);
@@ -101,7 +101,7 @@ impl ProverContext {
         let transformed_crs = transform_crs(&crs, &worker);
         let manager = Self::init_manager(None, &transformed_crs);
         Self {
-            worker: Worker::new_with_cpus(2),
+            worker: OldWorker::new_with_cpus(2),
             manager,
             crs_for_verification,
         }
@@ -174,6 +174,7 @@ impl Prover {
         transcript_params: Option<T::InitializationParameters>,
     ) -> Result<Proof<Bn256, C>, SynthesisError> {
         assert!(S::PRODUCE_WITNESS);
+        println!("GPU Prover");
         assert!(assembly.is_finalized);
         let n = assembly.n();
         let num_inputs = assembly.num_inputs;
@@ -331,7 +332,7 @@ impl Prover {
 
 fn transform_crs(
     crs: &Crs<Bn256, CrsForMonomialForm>,
-    worker: &Worker,
+    worker: &OldWorker,
 ) -> Crs<CompactBn256, CrsForMonomialForm> {
     use bellman::CurveAffine;
     let bases_len = crs.g1_bases.len();
