@@ -1,17 +1,21 @@
 # CPU/GPU Based Prover for zkSync Era
 
-[![Logo](eraLogo.svg)](https://zksync.io/)
+[![Logo](eraLogo.png)](https://zksync.io/)
 
 zkSync Era is a layer 2 rollup that uses zero-knowledge proofs to scale Ethereum without compromising on security or
 decentralization. Since it's EVM compatible (Solidity/Vyper), 99% of Ethereum projects can redeploy without refactoring
 or re-auditing a single line of code. zkSync Era also uses an LLVM-based compiler that will eventually let developers
 write smart contracts in C++, Rust and other popular languages.
 
-## Build
-`./build.sh`
+##  Build
+```
+git submodule update  --init --recursive
+cmake -Bbellman-cuda/build -Sbellman-cuda/ -DCMAKE_BUILD_TYPE=Release
+cmake --build bellman-cuda/build/
+```
 
 ## Test
-`cargo test test_prover_with_precomputed_setup -p testing --release -- --nocapture`
+`LOG_BASE=15 BELLMAN_CUDA_DIR=$PWD/bellman-cuda cargo test -package api-testing --release -- --nocapture`
 
 ## License
 

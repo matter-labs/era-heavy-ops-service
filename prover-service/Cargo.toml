@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zkevm_test_harness = {git = "https://github.com/matter-labs/era-zkevm_test_harness.git", branch = "main"}
+zkevm_test_harness = {git = "https://github.com/matter-labs/era-zkevm_test_harness.git", branch = "v1.3.2"}
 # zkevm_test_harness = {path = "../../zkevm_test_harness"}
 prover = {path =  "../api", package = "api", default_features = false, optional = true}
 bincode = "1.3.2"

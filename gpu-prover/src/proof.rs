@@ -116,7 +116,6 @@ fn create_initial_variables<
     for inp in input_values.iter() {
         transcript.commit_field_element(inp);
     }
-    println!("{:?} INPUT", &input_values.len());
 
     (proof, transcript, constants, input_values)
 }

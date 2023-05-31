@@ -174,7 +174,6 @@ impl Prover {
         transcript_params: Option<T::InitializationParameters>,
     ) -> Result<Proof<Bn256, C>, SynthesisError> {
         assert!(S::PRODUCE_WITNESS);
-        println!("GPU Prover");
         assert!(assembly.is_finalized);
         let n = assembly.n();
         let num_inputs = assembly.num_inputs;
