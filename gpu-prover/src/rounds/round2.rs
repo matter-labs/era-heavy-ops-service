@@ -1,5 +1,6 @@
 use super::*;
 
+// TODO fix get_challenge
 pub fn round2<S: SynthesisMode, C: Circuit<Bn256>, T: Transcript<Fr>, MC: ManagerConfigs>(
     manager: &mut DeviceMemoryManager<Fr, MC>,
     assembly: &DefaultAssembly<S>,

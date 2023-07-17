@@ -193,6 +193,7 @@ impl Prover {
         } else {
             // ProvingAssembly contains only witness values
             // For setup values we need a precomputed setup
+            // TODO: Setup will already be in the pinned memory with new version,
             unsafe { &mut *(setup.expect("setup") as &Setup as *const Setup as *mut Setup) }
         };
 

@@ -97,7 +97,7 @@ pub fn compute_main_custom_and_permutation_gates<S: SynthesisMode, MC: ManagerCo
             false,
         )?;
 
-        manager.multigpu_coset_fft(PolyId::ZPermShifted, coset_idx)?;
+        manager.multigpu_coset_fft(PolyId::ZPermShifted, coset_idx)?; // TODO save Monomial if there's enough space
         manager.multigpu_coset_fft_to_free_slot(PolyId::ZPerm, coset_idx)?;
 
         compute_permutation_gate_0(manager, constants, coset_idx)?;

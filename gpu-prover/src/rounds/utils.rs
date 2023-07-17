@@ -14,7 +14,7 @@ pub fn commit_point_as_xy<E: Engine, T: Transcript<E::Fr>>(
         transcript.commit_fe(&E::Fq::zero());
         transcript.commit_fe(&E::Fq::zero());
     } else {
-        let (x, y) = bellman::pairing::CurveAffine::into_xy_unchecked(point.clone());
+        let (x, y) = bellman::pairing::CurveAffine::into_xy_unchecked(point.clone()); // TODO
         transcript.commit_fe(&x);
         transcript.commit_fe(&y);
     }

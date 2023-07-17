@@ -147,6 +147,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         Ok(())
     }
 
+    // TODO: need to be rewriten with native GPU function
     pub fn devide_monomial_by_degree_one_monomial(
         &mut self,
         id: PolyId,
