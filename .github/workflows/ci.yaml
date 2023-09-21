@@ -5,7 +5,9 @@ on:
 jobs:
   build:
     name: cargo build and test
-    runs-on: [matterlabs-ci-gpu-runner]
+    runs-on: [ubuntu-latest]
+    container:
+      image: nvidia/cuda:12.2.0-devel-ubuntu22.04
     env:
       BELLMAN_CUDA_DIR: ${{ github.workspace }}/bellman-cuda
     steps:
@@ -21,9 +23,7 @@ jobs:
           fetch-depth: 0
           path: ./bellman-cuda
       - name: Install build dependencies
-        run: |
-          echo "deb http://azure.archive.ubuntu.com/ubuntu/ jammy main" | sudo tee -a /etc/apt/sources.list
-          sudo apt update && sudo apt install -y pkg-config libssl-dev libclang-dev gcc g++ cmake
+        run: sudo apt update && sudo apt install -y pkg-config libssl-dev libclang-dev gcc g++ cmake
       - name: Build bellman-cuda
         run: |
           cmake -Bbellman-cuda/build -Sbellman-cuda/ -DCMAKE_BUILD_TYPE=Release &&
