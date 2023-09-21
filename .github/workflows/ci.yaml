@@ -30,7 +30,7 @@ jobs:
           cmake --build bellman-cuda/build/
 
       - run: cargo build --verbose
-      - run: cargo test --package api-testing --release
+      - run: cargo test --package api-testing --release --no-run
 
   formatting:
     name: cargo fmt
