@@ -17,7 +17,7 @@ jobs:
           path: ./bellman-cuda
       - name: Install build dependencies
         run: |
-          echo "deb http://azure.archive.ubuntu.com/ubuntu/ jammy main" >> /etc/apt/sources.list
+          echo "deb http://azure.archive.ubuntu.com/ubuntu/ jammy main" | sudo tee -a /etc/apt/sources.list
           sudo apt update && sudo apt install -y pkg-config libssl-dev libclang-dev gcc g++ cmake
       - name: Build bellman-cuda
         run: |
