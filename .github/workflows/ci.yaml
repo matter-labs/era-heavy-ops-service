@@ -9,6 +9,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly-2022-08-23
       - name: Clone bellman-cuda repository
         uses: actions/checkout@v3
         with:
