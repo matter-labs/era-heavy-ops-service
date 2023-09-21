@@ -1,0 +1,37 @@
+name: "Rust CI"
+on:
+  pull_request:
+
+jobs:
+  build:
+    name: cargo build and test
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Clone bellman-cuda repository
+        uses: actions/checkout@v3
+        with:
+          repository: matter-labs/era-bellman-cuda
+          fetch-depth: 0
+          path: ./bellman-cuda
+      - name: Install build dependencies
+        run: sudo apt update && sudo apt install -y pkg-config libssl-dev libclang-dev gcc g++ cmake
+      - name: Build bellman-cuda
+        run: |
+          cmake -Bbellman-cuda/build -Sbellman-cuda/ -DCMAKE_BUILD_TYPE=Release &&
+          cmake --build bellman-cuda/build/
+
+      - run: BELLMAN_CUDA_DIR=${{ github.workspace }}/bellman-cuda cargo build --verbose
+      - run: cargo test --verbose --all
+
+  formatting:
+    name: cargo fmt
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: rustfmt
+      - name: Rustfmt Check
+        uses: actions-rust-lang/rustfmt@v1
