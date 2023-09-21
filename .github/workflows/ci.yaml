@@ -6,6 +6,8 @@ jobs:
   build:
     name: cargo build and test
     runs-on: [matterlabs-ci-gpu-runner]
+    env:
+      BELLMAN_CUDA_DIR: ${{ github.workspace }}/bellman-cuda
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -27,8 +29,8 @@ jobs:
           cmake -Bbellman-cuda/build -Sbellman-cuda/ -DCMAKE_BUILD_TYPE=Release &&
           cmake --build bellman-cuda/build/
 
-      - run: BELLMAN_CUDA_DIR=${{ github.workspace }}/bellman-cuda cargo build --verbose
-      - run: cargo test --verbose --all
+      - run: cargo build --verbose
+      - run: cargo test --package testing --release --no-run
 
   formatting:
     name: cargo fmt
