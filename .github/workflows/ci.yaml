@@ -17,6 +17,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: nightly-2022-08-23
+          # Remove default `-D warnings`.
           rustflags: ""
       - name: Clone bellman-cuda repository
         uses: actions/checkout@v3
@@ -26,9 +27,8 @@ jobs:
           path: ./bellman-cuda
       - name: Build bellman-cuda
         run: |
-          cmake -Bbellman-cuda/build -Sbellman-cuda/ -DCMAKE_BUILD_TYPE=Release &&
+          cmake -Bbellman-cuda/build -Sbellman-cuda/ -DCMAKE_BUILD_TYPE=Release
           cmake --build bellman-cuda/build/
-
       - run: cargo build --verbose
       - run: cargo test --package api-testing --release --no-run
 
