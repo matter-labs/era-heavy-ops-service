@@ -10,7 +10,7 @@ gpu-ffi = {path = "../gpu-ffi"}
 crossbeam = "*"
 rand = "0.4"
 num_cpus = "1"
-franklin-crypto = {package = "franklin-crypto", features = ["plonk"], git = "ssh://git@github.com/matter-labs/franklin-crypto", branch = "dev", optional = true}
+franklin-crypto = {package = "franklin-crypto", features = ["plonk"], git = "https://github.com/matter-labs/franklin-crypto", branch = "dev", optional = true}
 # franklin-crypto = {path = "../../franklin-crypto", features = ["plonk"], optional = true}
 itertools = "*"
 cfg-if = "1"
