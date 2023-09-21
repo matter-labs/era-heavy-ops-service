@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3.8"
-futures-locks = "0.6"
+futures-locks = "0.7"
 derivative = "*"
 num_cpus = "1"
 crossbeam = "*"
