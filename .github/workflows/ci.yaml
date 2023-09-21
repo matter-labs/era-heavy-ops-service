@@ -12,6 +12,8 @@ jobs:
       BELLMAN_CUDA_DIR: ${{ github.workspace }}/bellman-cuda
     steps:
       - uses: actions/checkout@v3
+      - name: Install build dependencies
+        run: sudo apt update && sudo apt install -y pkg-config libssl-dev libclang-dev gcc g++ cmake curl
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: nightly-2022-08-23
@@ -22,8 +24,6 @@ jobs:
           repository: matter-labs/era-bellman-cuda
           fetch-depth: 0
           path: ./bellman-cuda
-      - name: Install build dependencies
-        run: sudo apt update && sudo apt install -y pkg-config libssl-dev libclang-dev gcc g++ cmake
       - name: Build bellman-cuda
         run: |
           cmake -Bbellman-cuda/build -Sbellman-cuda/ -DCMAKE_BUILD_TYPE=Release &&
