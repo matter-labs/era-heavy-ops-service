@@ -28,6 +28,7 @@ jobs:
           echo "tag=$(gh release -R github.com/matter-labs/era-bellman-cuda list -L 1 | awk '{print $3}')" >> $GITHUB_OUTPUT
 
       - name: Prepare bellman-cuda directory
+        shell: bash
         run: |
           declare release=($(curl --silent https://api.github.com/repos/matter-labs/era-bellman-cuda/releases | jq -r '.[0] | .name, .tarball_url, .assets[0].browser_download_url'))
           #curl --silent -L "${release[1]}" --output bellman-cuda-source.tar.gz
