@@ -6,24 +6,21 @@ jobs:
   build:
     name: cargo build and test
     runs-on: [ubuntu-latest]
+    container:
+      image: nvidia/cuda:11.8.0-devel-ubuntu22.04
     env:
       BELLMAN_CUDA_DIR: ${{ github.workspace }}/bellman-cuda
     steps:
       - uses: actions/checkout@v3
 
       - name: Install build dependencies
-        run: sudo apt update && sudo apt install -y jq
+        run: apt update && apt install -y pkg-config libssl-dev libclang-dev gcc g++ curl jq
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: nightly-2022-08-23
           # Remove default `-D warnings`.
           rustflags: ""
-
-      - name: Find latest bellman-cuda release
-        id: bellman-cuda-release
-        run: |
-          echo "tag=$(gh release -R github.com/matter-labs/era-bellman-cuda list -L 1 | awk '{print $3}')" >> $GITHUB_OUTPUT
 
       - name: Prepare bellman-cuda directory
         shell: bash
