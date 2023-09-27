@@ -549,6 +549,7 @@ fn setup_loader<AM: ArtifactProvider + 'static, P: Params>(
                     }
 
                     // invalidate stale entries
+                    // TODO: should we invalidate all stale entries or single one?
                     let mut invalidated = false;
                     for slot in cache.iter_mut() {
                         if invalidated {

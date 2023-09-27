@@ -16,7 +16,7 @@ fn main() {
         todo!("set BELLMAN_CUDA_DIR=$PWD")
     };
 
-    generate_bindings(&bellman_cuda_path);
+    generate_bindings(&bellman_cuda_path); // TODO bindgen generates i8 for char
 
     #[cfg(not(target_os = "macos"))]
     link_multiexp_library(&bellman_cuda_path); // FIXME enable

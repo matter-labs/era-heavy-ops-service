@@ -68,7 +68,7 @@ pub type Assembly<S> = OriginalAssembly<
 #[cfg(feature = "legacy")]
 type Setup<C> = OriginalSetup<Bn256, C>;
 #[cfg(not(feature = "legacy"))]
-pub type Setup = AsyncSetup;
+pub type Setup = AsyncSetup; // TODO: Switch to a setup that allocated on pinned memory
 
 pub type TrivialAssembly = Assembly<SynthesisModeTesting>;
 pub type ProvingAssembly = Assembly<SynthesisModeProve>;

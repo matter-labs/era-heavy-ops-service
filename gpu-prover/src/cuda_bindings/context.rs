@@ -344,6 +344,7 @@ pub fn transmute_values<'a, U>(values: &'a [U]) -> &'a [u8] {
     let ptr = values.as_ptr();
     let len = values.len();
 
+    // TODO: change into ptr.addr() when it's stable
     assert!(
         (ptr as usize) % std::mem::align_of::<u8>() == 0,
         "trying to cast with mismatched layout"

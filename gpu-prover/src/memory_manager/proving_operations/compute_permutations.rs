@@ -17,7 +17,7 @@ pub fn compute_permutation_polynomials<S: SynthesisMode, MC: ManagerConfigs>(
         manager.polynomials_on_device().len(),
         0,
         "manager should not contain any polynomials"
-    );
+    ); // TODO:
 
     let ctx_id = 0;
     let device_id = manager.ctx[ctx_id].device_id();

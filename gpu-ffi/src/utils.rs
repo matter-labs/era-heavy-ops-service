@@ -38,7 +38,7 @@ pub fn bitreverse(n: usize, l: usize) -> usize {
 //     repr.read_le(&encoding_z[..]).unwrap();
 //     let z = <<E::G1 as CurveProjective>::Base as PrimeField>::from_raw_repr(repr).unwrap();
 
-//     E::G1::from_xyz_unchecked(x, y, z)
+//     E::G1::from_xyz_unchecked(x, y, z) // TODO
 // }
 
 // pub async fn encode_bases<E: Engine>(

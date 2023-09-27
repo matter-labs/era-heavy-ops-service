@@ -54,6 +54,7 @@ pub fn transmute_values<'a, U, V, const R: bool>(values: &'a [U]) -> &'a [V] {
     let ptr = values.as_ptr();
     let len = values.len();
 
+    // TODO: change into ptr.addr() when it's stable
     assert!(
         (ptr as usize) % std::mem::align_of::<V>() == 0,
         "trying to cast with mismatched layout"
@@ -75,6 +76,7 @@ pub fn transmute_values_mut<'a, U, V, const R: bool>(values: &'a mut [U]) -> &'a
     let ptr = values.as_mut_ptr();
     let len = values.len();
 
+    // TODO: change into ptr.addr() when it's stable
     assert!(
         (ptr as usize) % std::mem::align_of::<V>() == 0,
         "trying to cast with mismatched layout"

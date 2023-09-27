@@ -2,13 +2,12 @@
 name = "gpu-ffi"
 version = "0.1.0"
 edition = "2021"
-license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 futures = "0.3.8"
-futures-locks = "0.7"
+futures-locks = "0.6"
 derivative = "*"
 num_cpus = "1"
 crossbeam = "*"

@@ -222,6 +222,7 @@ impl<MC: ManagerConfigs> DeviceMemoryManager<Fr, MC> {
         Ok(())
     }
 
+    // TODO: rewrite in a better way
     unsafe fn grand_product_inner(&mut self, idx: usize) -> GpuResult<()> {
         assert_eq!(
             MC::NUM_GPUS,
