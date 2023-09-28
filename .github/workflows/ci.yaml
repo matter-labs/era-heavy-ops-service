@@ -9,7 +9,7 @@ jobs:
     container:
       image: nvidia/cuda:11.8.0-devel-ubuntu22.04
     env:
-      BELLMAN_CUDA_DIR: ${{ github.workspace }}/era-bellman-cuda
+      BELLMAN_CUDA_DIR: ${{ github.workspace }}/bellman-cuda
     steps:
       - uses: actions/checkout@v3
 
@@ -22,16 +22,16 @@ jobs:
           # Remove default `-D warnings`.
           rustflags: ""
 
-      - name: Prepare era-bellman-cuda directory
+      - name: Prepare bellman-cuda directory
         shell: bash
         # Curl ugliness is required because gh can't work with authentication: https://github.com/cli/cli/issues/2680.
         run: |
           release=($(curl --silent https://api.github.com/repos/matter-labs/era-bellman-cuda/releases | jq -r '.[0] | .name, .tarball_url, .assets[0].browser_download_url'))
-          curl --silent -L "${release[1]}" --output era-bellman-cuda-source.tar.gz
-          curl --silent -L "${release[2]}" --output era-bellman-cuda.tar.gz
-          mkdir -p era-bellman-cuda
-          tar xvfz era-bellman-cuda.tar.gz -C ./era-bellman-cuda
-          tar xvfz era-bellman-cuda-source.tar.gz -C ./era-bellman-cuda --strip-components=1 --wildcards \*/src/
+          curl --silent -L "${release[1]}" --output bellman-cuda-source.tar.gz
+          curl --silent -L "${release[2]}" --output bellman-cuda.tar.gz
+          mkdir -p bellman-cuda
+          tar xvfz bellman-cuda.tar.gz -C ./bellman-cuda
+          tar xvfz bellman-cuda-source.tar.gz -C ./bellman-cuda --strip-components=1 --wildcards \*/src/
 
       - run: cargo build --verbose
 

@@ -24,7 +24,7 @@ fn main() {
 
 fn generate_bindings(bellman_cuda_path: &str) {
     println!("generating bindings");
-    let header_file = &format!("{}/src/era-bellman-cuda.h", bellman_cuda_path);
+    let header_file = &format!("{}/src/bellman-cuda.h", bellman_cuda_path);
     const OUT_FILE: &str = "bindings.rs";
     println!("cargo:rerun-if-changed={}", header_file);
 
@@ -54,7 +54,7 @@ fn generate_bindings(bellman_cuda_path: &str) {
 
 fn link_multiexp_library(bellman_cuda_path: &str) {
     let kind = "static";
-    let name = "era-bellman-cuda";
+    let name = "bellman-cuda";
 
     println!("cargo:rustc-link-lib=dylib=stdc++");
     println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
