@@ -10,12 +10,12 @@ write smart contracts in C++, Rust and other popular languages.
 ##  Build
 ```
 git submodule update  --init --recursive
-cmake -Bera-bellman-cuda/build -Sera-bellman-cuda/ -DCMAKE_BUILD_TYPE=Release
-cmake --build era-bellman-cuda/build/
+cmake -Bbellman-cuda/build -Sbellman-cuda/ -DCMAKE_BUILD_TYPE=Release
+cmake --build bellman-cuda/build/
 ```
 
 ## Test
-`LOG_BASE=15 BELLMAN_CUDA_DIR=$PWD/era-bellman-cuda cargo test -package api-testing --release -- --nocapture`
+`LOG_BASE=15 BELLMAN_CUDA_DIR=$PWD/bellman-cuda cargo test -package api-testing --release -- --nocapture`
 
 ## License
 
