@@ -52,10 +52,10 @@ cfg_if! {
     if #[cfg(feature = "allocator")]{
         use std::alloc::{Allocator, Global};
         use cuda_bindings::cuda_allocator::CudaAllocator;
-        type DefaultAssembly<S> = Assembly<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext,S, cuda_bindings::CudaAllocator>;
+        pub type DefaultAssembly<S> = Assembly<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext,S, cuda_bindings::CudaAllocator>;
         // pub type AsyncVec<T> = OriginalAsyncVec<T, cuda_bindings::CudaAllocator>;
     }else{
-        type DefaultAssembly<S> = Assembly<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext,S>;
+        pub type DefaultAssembly<S> = Assembly<Bn256, PlonkCsWidth4WithNextStepAndCustomGatesParams, SelectorOptimizedWidth4MainGateWithDNext,S>;
         // pub type AsyncVec<T> = OriginalAsyncVec<T>;
     }
 }

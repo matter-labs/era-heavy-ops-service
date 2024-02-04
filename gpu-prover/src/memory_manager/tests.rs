@@ -20,7 +20,7 @@ fn init_manager_with_bases(bases: &[CompactG1Affine]) -> DeviceMemoryManager<Fr,
     let device_ids = if available_memory_in_gb >= memory_limit {
         vec![0]
     } else {
-        vec![0, 2]
+        vec![0, 1]
     };
 
     DeviceMemoryManager::<Fr, TestConfigs>::init(&device_ids, &bases).unwrap()
