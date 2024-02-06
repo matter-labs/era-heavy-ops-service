@@ -7,5 +7,7 @@ edition = "2021"
 
 [dependencies]
 gpu-prover = {path = "../gpu-prover"}
-zkevm_test_harness = {path = "../../era-zkevm_test_harness"}
-circuit_definitions = {path = "../../era-zkevm_test_harness/circuit_definitions"}
+# zkevm_test_harness = {path = "../../era-zkevm_test_harness"}
+# circuit_definitions = {path = "../../era-zkevm_test_harness/circuit_definitions"}
+zkevm_test_harness = {package = "zkevm_test_harness", git = "https://github.com/matter-labs/era-zkevm_test_harness", branch = "gpu-wrapper"}
+circuit_definitions = {package = "circuit_definitions", git = "https://github.com/matter-labs/era-zkevm_test_harness", branch = "gpu-wrapper"}
