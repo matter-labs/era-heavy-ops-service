@@ -7,10 +7,11 @@ mod tests;
 use error::*;
 use prover_storage::*;
 
+use circuit_definitions::circuit_definitions::aux_layer::wrapper::ZkSyncCompressionWrapper;
 use circuit_definitions::circuit_definitions::{
     aux_layer::{
         ZkSyncCompressionForWrapperCircuit, ZkSyncCompressionLayerCircuit,
-        ZkSyncCompressionLayerStorage, ZkSyncSnarkWrapperCircuit,
+        ZkSyncCompressionLayerStorage,
     },
     recursion_layer::{
         ZkSyncRecursionLayerProof, ZkSyncRecursionLayerStorage, ZkSyncRecursionLayerStorageType,
@@ -58,7 +59,8 @@ use zkevm_test_harness::{
     },
 };
 
-pub use circuit_definitions::circuit_definitions::aux_layer::wrapper::ZkSyncCompressionWrapper;
+pub use circuit_definitions::circuit_definitions::aux_layer::ZkSyncSnarkWrapperCircuit;
+pub use zkevm_test_harness::franklin_crypto::bellman::plonk::Proof;
 pub use zkevm_test_harness::proof_wrapper_utils::{WrapperConfig, DEFAULT_WRAPPER_CONFIG};
 
 pub struct GPUWrapperConfigs;
