@@ -5,7 +5,7 @@ use super::*;
 fn test_wrapper_prover() {
     // Here is a test with detailed description how to use Wrapper Prover
 
-    // In order to initialize WrapperProver you need to have to compile bellman-cuda 
+    // In order to initialize WrapperProver you need to have to compile bellman-cuda
     // (https://github.com/matter-labs/era-bellman-cuda)
     // and create a global variable with its path:
     //     BELLMAN_CUDA_DIR=$PWD/../era-bellman-cuda
@@ -17,11 +17,11 @@ fn test_wrapper_prover() {
 
     // For now we use default GPUWrapperConfigs witch is for single L4 GPU,
     // but you can chage it if you want to use 2 or 4 GPUs for one prover.
-    // Also we use DEFAULT_WRAPPER_CONFIG, that could be chenged 
+    // Also we use DEFAULT_WRAPPER_CONFIG, that could be chenged
     // if you want to add more compression layers:
     let wrapper_config = zkevm_test_harness::proof_wrapper_utils::DEFAULT_WRAPPER_CONFIG;
 
-    // In order to use prover we need scheduler_vk (for generating setup) 
+    // In order to use prover we need scheduler_vk (for generating setup)
     // and scheduler_proof (for generating proofs)
     let scheduler_vk = get_scheduler_vk_from_local_source();
     let scheduler_proof = get_scheduler_proof_from_local_source();
@@ -35,10 +35,14 @@ fn test_wrapper_prover() {
     //     generate_proofs
 
     // The first one generates setup needed for proving from scheduler vk:
-    prover.generate_setup_data(scheduler_vk.into_inner()).unwrap();
+    prover
+        .generate_setup_data(scheduler_vk.into_inner())
+        .unwrap();
 
     // The second one generates proofs from scheduler proof:
-    prover.generate_proofs(scheduler_proof.clone().into_inner()).unwrap();
+    prover
+        .generate_proofs(scheduler_proof.clone().into_inner())
+        .unwrap();
 
     // We can get final Wrapper proof and vk with:
     let snark_vk = prover.get_wrapper_vk().unwrap();
@@ -52,15 +56,14 @@ fn test_wrapper_prover() {
         .unwrap();
 
     // And verify correctness:
-    let is_valid = verify::<_, _, RollingKeccakTranscript<Fr>>(
-        &snark_vk, 
-        &snark_proof, 
-        None
-    ).unwrap();
+    let is_valid =
+        verify::<_, _, RollingKeccakTranscript<Fr>>(&snark_vk, &snark_proof, None).unwrap();
     assert!(is_valid);
 
     // We also can generate proofs multiple times without regenerating setup:
-    prover.generate_proofs(scheduler_proof.clone().into_inner()).unwrap();
+    prover
+        .generate_proofs(scheduler_proof.clone().into_inner())
+        .unwrap();
 
     // If generating proof fails the WrapperError is returned:
     let result = prover.generate_proofs(bad_scheduler_proof.into_inner());
@@ -70,12 +73,14 @@ fn test_wrapper_prover() {
     let result = prover.generate_setup_data(bad_scheduler_vk.into_inner());
     assert!(result.is_err());
 
-    // Note that after prover is just created or after generating setup fails there 
+    // Note that after prover is just created or after generating setup fails there
     // is no valid setup inside prover:
     assert!(!prover.setup_is_ready());
 
     // In this case generating proofs will panic:
-    prover.generate_proofs(scheduler_proof.into_inner()).unwrap();
+    prover
+        .generate_proofs(scheduler_proof.into_inner())
+        .unwrap();
 }
 
 #[test]
@@ -83,8 +88,10 @@ fn test_vk_generation() {
     let mut prover = allocate_default_prover();
 
     let scheduler_vk = get_scheduler_vk_from_local_source();
-    prover.generate_setup_data(scheduler_vk.into_inner()).unwrap();
-    
+    prover
+        .generate_setup_data(scheduler_vk.into_inner())
+        .unwrap();
+
     let scheduler_vk = get_scheduler_vk_from_local_source();
     use zkevm_test_harness::proof_wrapper_utils::get_wrapper_setup_and_vk_from_scheduler_vk;
     let wrapper_config = zkevm_test_harness::proof_wrapper_utils::DEFAULT_WRAPPER_CONFIG;
@@ -106,7 +113,8 @@ fn allocate_default_prover() -> WrapperProver<GPUWrapperConfigs> {
 
 fn get_scheduler_vk_from_local_source() -> ZkSyncRecursionLayerVerificationKey {
     let source = LocalFileDataSource;
-    source.get_recursion_layer_vk(ZkSyncRecursionLayerStorageType::SchedulerCircuit as u8)
+    source
+        .get_recursion_layer_vk(ZkSyncRecursionLayerStorageType::SchedulerCircuit as u8)
         .expect("There should be scheduler vk in local storage")
 }
 
@@ -118,7 +126,8 @@ fn get_bad_scheduler_vk() -> ZkSyncRecursionLayerVerificationKey {
 
 fn get_scheduler_proof_from_local_source() -> ZkSyncRecursionLayerProof {
     let source = LocalFileDataSource;
-    source.get_scheduler_proof()
+    source
+        .get_scheduler_proof()
         .expect("There should be scheduler proof in local storage")
 }
 

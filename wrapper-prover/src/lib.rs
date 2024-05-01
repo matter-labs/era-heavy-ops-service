@@ -1,24 +1,25 @@
 #![feature(generic_const_exprs)]
 
-mod prover_storage;
 mod error;
+mod prover_storage;
 mod tests;
 
-use prover_storage::*;
 use error::*;
+use prover_storage::*;
 
 use circuit_definitions::circuit_definitions::{
     aux_layer::{
-        ZkSyncCompressionForWrapperCircuit,
-        ZkSyncCompressionLayerCircuit, ZkSyncCompressionLayerStorage, ZkSyncSnarkWrapperCircuit,
+        ZkSyncCompressionForWrapperCircuit, ZkSyncCompressionLayerCircuit,
+        ZkSyncCompressionLayerStorage, ZkSyncSnarkWrapperCircuit,
     },
     recursion_layer::{
-        ZkSyncRecursionLayerStorage, ZkSyncRecursionLayerStorageType, ZkSyncRecursionProof,
-        ZkSyncRecursionVerificationKey, ZkSyncRecursionLayerProof, ZkSyncRecursionLayerVerificationKey,
+        ZkSyncRecursionLayerProof, ZkSyncRecursionLayerStorage, ZkSyncRecursionLayerStorageType,
+        ZkSyncRecursionLayerVerificationKey, ZkSyncRecursionProof, ZkSyncRecursionVerificationKey,
     },
 };
 use gpu_prover::{
-    bellman::SynthesisError, compute_vk_from_assembly, cuda_bindings::GpuError, AsyncSetup, DefaultAssembly, DeviceMemoryManager, ManagerConfigs, ProvingError
+    bellman::SynthesisError, compute_vk_from_assembly, cuda_bindings::GpuError, AsyncSetup,
+    DefaultAssembly, DeviceMemoryManager, ManagerConfigs, ProvingError,
 };
 use std::sync::Arc;
 use std::time::Instant;
@@ -35,8 +36,8 @@ use zkevm_test_harness::{
         pairing::compact_bn256::Bn256 as CompactBn256,
         plonk::{
             better_better_cs::cs::{
-                Circuit, PlonkCsWidth4WithNextStepAndCustomGatesParams,
-                SynthesisModeGenerateSetup, SynthesisModeProve,
+                Circuit, PlonkCsWidth4WithNextStepAndCustomGatesParams, SynthesisModeGenerateSetup,
+                SynthesisModeProve,
             },
             better_better_cs::proof::Proof as SnarkProof,
             better_better_cs::setup::VerificationKey as SnarkVK,
@@ -51,14 +52,14 @@ use zkevm_test_harness::{
         L1_VERIFIER_DOMAIN_SIZE_LOG,
     },
     prover_utils::{
-        create_compression_for_wrapper_setup_data, prove_compression_for_wrapper_circuit,
-        verify_compression_for_wrapper_proof, create_compression_layer_setup_data,
-        verify_compression_layer_proof, prove_compression_layer_circuit,
+        create_compression_for_wrapper_setup_data, create_compression_layer_setup_data,
+        prove_compression_for_wrapper_circuit, prove_compression_layer_circuit,
+        verify_compression_for_wrapper_proof, verify_compression_layer_proof,
     },
 };
 
-pub use zkevm_test_harness::proof_wrapper_utils::WrapperConfig;
 pub use circuit_definitions::circuit_definitions::aux_layer::wrapper::ZkSyncCompressionWrapper;
+pub use zkevm_test_harness::proof_wrapper_utils::{WrapperConfig, DEFAULT_WRAPPER_CONFIG};
 
 pub struct GPUWrapperConfigs;
 
@@ -81,7 +82,10 @@ pub struct WrapperProver<MC: ManagerConfigs> {
 }
 
 impl<MC: ManagerConfigs> WrapperProver<MC> {
-    pub fn new(crs: &Crs<Bn256, CrsForMonomialForm>, wrapper_config: WrapperConfig) -> WrapperResult<Self> {
+    pub fn new(
+        crs: &Crs<Bn256, CrsForMonomialForm>,
+        wrapper_config: WrapperConfig,
+    ) -> WrapperResult<Self> {
         println!("Start allocating new prover");
         let start = Instant::now();
 
@@ -142,7 +146,10 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
             .map(|vk| vk.into_inner())
     }
 
-    pub fn generate_setup_data(&mut self, scheduler_vk: ZkSyncRecursionVerificationKey) -> WrapperResult<()> {
+    pub fn generate_setup_data(
+        &mut self,
+        scheduler_vk: ZkSyncRecursionVerificationKey,
+    ) -> WrapperResult<()> {
         println!("Start generating setup data");
         let start = Instant::now();
 
@@ -170,69 +177,78 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
         self.setup_data.compression_data.clear();
 
         for circuit_type in self.wrapper_config.get_compression_types() {
-            println!("Start generating setup data for compression #{}", circuit_type);
+            println!(
+                "Start generating setup data for compression #{}",
+                circuit_type
+            );
             let start = Instant::now();
 
-            let vk = get_vk_for_previous_circuit(&self.setup_data.source, circuit_type).expect(&format!(
-                "VK of previous circuit should be present. Current circuit type: {}",
-                circuit_type
-            ));
+            let vk = get_vk_for_previous_circuit(&self.setup_data.source, circuit_type).expect(
+                &format!(
+                    "VK of previous circuit should be present. Current circuit type: {}",
+                    circuit_type
+                ),
+            );
 
             let circuit =
                 ZkSyncCompressionLayerCircuit::from_witness_and_vk(None, vk, circuit_type);
-            
+
             let proof_config = circuit.proof_config_for_compression_step();
 
-            let (
-                setup_base, 
-                setup, 
-                vk, 
-                setup_tree, 
-                vars_hint, 
-                wits_hint, 
-                finalization_hint
-            ) = std::panic::catch_unwind(|| {
-                let worker = BoojumWorker::new();
-                create_compression_layer_setup_data(
-                    circuit,
-                    &worker,
-                    proof_config.fri_lde_factor,
-                    proof_config.merkle_tree_cap_size,
-                )}).map_err(|_| CompressionError::GenerationCompressionSetupError(circuit_type))?;
+            let (setup_base, setup, vk, setup_tree, vars_hint, wits_hint, finalization_hint) =
+                std::panic::catch_unwind(|| {
+                    let worker = BoojumWorker::new();
+                    create_compression_layer_setup_data(
+                        circuit,
+                        &worker,
+                        proof_config.fri_lde_factor,
+                        proof_config.merkle_tree_cap_size,
+                    )
+                })
+                .map_err(|_| CompressionError::GenerationCompressionSetupError(circuit_type))?;
 
-            self.setup_data.source
+            self.setup_data
+                .source
                 .set_compression_vk(ZkSyncCompressionLayerStorage::from_inner(
                     circuit_type,
                     vk.clone(),
-                )).expect("Never returns error");
-            self.setup_data.source
+                ))
+                .expect("Never returns error");
+            self.setup_data
+                .source
                 .set_compression_hint(ZkSyncCompressionLayerStorage::from_inner(
                     circuit_type,
                     finalization_hint.clone(),
-                )).expect("Never returns error");
+                ))
+                .expect("Never returns error");
 
-            self.setup_data.compression_data.push(
-                CompressionData {
-                    setup_base,
-                    setup,
-                    setup_tree,
-                    vk,
-                    vars_hint,
-                    wits_hint,
-                    finalization_hint,
-                }
+            self.setup_data.compression_data.push(CompressionData {
+                setup_base,
+                setup,
+                setup_tree,
+                vk,
+                vars_hint,
+                wits_hint,
+                finalization_hint,
+            });
+
+            println!(
+                "Setup data for compression #{} is generated, took {:?}",
+                circuit_type,
+                start.elapsed()
             );
-
-            println!("Setup data for compression #{} is generated, took {:?}", circuit_type, start.elapsed());
         }
-        
+
         Ok(())
     }
 
     fn compute_compression_for_wrapper_setup_data(&mut self) -> WrapperResult<()> {
         let circuit_type = self.wrapper_config.get_compression_for_wrapper_type();
 
-        println!("Start generating setup data for compression for wrapper #{}", circuit_type);
+        println!(
+            "Start generating setup data for compression for wrapper #{}",
+            circuit_type
+        );
         let start = Instant::now();
 
         let vk = get_vk_for_previous_circuit(&mut self.setup_data.source, circuit_type).expect(
@@ -246,47 +262,50 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
             ZkSyncCompressionForWrapperCircuit::from_witness_and_vk(None, vk, circuit_type);
         let proof_config = circuit.proof_config_for_compression_step();
 
-        let (
-            setup_base, 
-            setup, 
-            vk, 
-            setup_tree, 
-            vars_hint, 
-            wits_hint, 
-            finalization_hint
-        ) = std::panic::catch_unwind(|| {
-            let worker: BoojumWorker = BoojumWorker::new();
-            create_compression_for_wrapper_setup_data(
-                circuit,
-                &worker,
-                proof_config.fri_lde_factor,
-                proof_config.merkle_tree_cap_size,
-            )}).map_err(|_| CompressionError::GenerationCompressionForWrapperSetupError(circuit_type))?;
+        let (setup_base, setup, vk, setup_tree, vars_hint, wits_hint, finalization_hint) =
+            std::panic::catch_unwind(|| {
+                let worker: BoojumWorker = BoojumWorker::new();
+                create_compression_for_wrapper_setup_data(
+                    circuit,
+                    &worker,
+                    proof_config.fri_lde_factor,
+                    proof_config.merkle_tree_cap_size,
+                )
+            })
+            .map_err(|_| {
+                CompressionError::GenerationCompressionForWrapperSetupError(circuit_type)
+            })?;
 
-        self.setup_data.source
+        self.setup_data
+            .source
             .set_compression_for_wrapper_vk(ZkSyncCompressionLayerStorage::from_inner(
                 circuit_type,
                 vk.clone(),
-            )).expect("Never returns error");
-        self.setup_data.source
+            ))
+            .expect("Never returns error");
+        self.setup_data
+            .source
             .set_compression_for_wrapper_hint(ZkSyncCompressionLayerStorage::from_inner(
                 circuit_type,
                 finalization_hint.clone(),
-            )).expect("Never returns error");
+            ))
+            .expect("Never returns error");
 
-        self.setup_data.wrapper_compression_data = Some(
-            CompressionData {
-                setup_base,
-                setup,
-                setup_tree,
-                vk,
-                vars_hint,
-                wits_hint,
-                finalization_hint,
-            }
+        self.setup_data.wrapper_compression_data = Some(CompressionData {
+            setup_base,
+            setup,
+            setup_tree,
+            vk,
+            vars_hint,
+            wits_hint,
+            finalization_hint,
+        });
+
+        println!(
+            "Setup data for compression for wrapper #{} is generated, took {:?}",
+            circuit_type,
+            start.elapsed()
         );
-
-        println!("Setup data for compression for wrapper #{} is generated, took {:?}", circuit_type, start.elapsed());
         Ok(())
     }
 
@@ -300,12 +319,10 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
             .setup_data
             .source
             .get_compression_for_wrapper_vk(wrapper_type)
-            .expect(
-                &format!(
-                    "VK of previous circuit should be present. Current wrapper type: {}",
-                    wrapper_type
-                )
-            )
+            .expect(&format!(
+                "VK of previous circuit should be present. Current wrapper type: {}",
+                wrapper_type
+            ))
             .into_inner();
 
         let mut assembly = DefaultAssembly::<SynthesisModeGenerateSetup>::new();
@@ -324,9 +341,11 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
         wrapper_circuit.synthesize(&mut assembly)?;
         assembly.finalize_to_size_log_2(L1_VERIFIER_DOMAIN_SIZE_LOG);
 
-        self.setup_data
-            .wrapper_setup
-            .generate_from_assembly(&self.worker, &assembly, &mut self.manager)?;
+        self.setup_data.wrapper_setup.generate_from_assembly(
+            &self.worker,
+            &assembly,
+            &mut self.manager,
+        )?;
 
         let mut dummy_crs = Crs::<_, CrsForMonomialForm>::dummy_crs(1);
         dummy_crs.g2_monomial_bases = self.g2_bases.clone();
@@ -342,9 +361,16 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
         let snark_vk = snark_vk_result?;
 
         let snark_vk = ZkSyncCompressionLayerStorage::from_inner(wrapper_type, snark_vk);
-        self.setup_data.source.set_wrapper_vk(snark_vk).expect("Never returns error");
+        self.setup_data
+            .source
+            .set_wrapper_vk(snark_vk)
+            .expect("Never returns error");
 
-        println!("Setup data for wrapper #{} is generated, took {:?}", wrapper_type, start.elapsed());
+        println!(
+            "Setup data for wrapper #{} is generated, took {:?}",
+            wrapper_type,
+            start.elapsed()
+        );
         Ok(())
     }
 
@@ -352,13 +378,17 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
         println!("Start generating proofs");
         let start = Instant::now();
 
-        assert!(self.setup_is_ready, "Need to generate setup data before proving");
+        assert!(
+            self.setup_is_ready,
+            "Need to generate setup data before proving"
+        );
 
         self.setup_data
             .source
             .set_scheduler_proof(ZkSyncRecursionLayerStorage::SchedulerCircuit(
                 scheduler_proof,
-            )).expect("Never returns error");
+            ))
+            .expect("Never returns error");
 
         self.generate_compression_proofs()?;
         self.generate_compression_for_wrapper_proof()?;
@@ -369,7 +399,12 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
     }
 
     fn generate_compression_proofs(&mut self) -> WrapperResult<()> {
-        for (i, circuit_type) in self.wrapper_config.get_compression_types().into_iter().enumerate() {
+        for (i, circuit_type) in self
+            .wrapper_config
+            .get_compression_types()
+            .into_iter()
+            .enumerate()
+        {
             println!("Start generating proof for compression #{}", circuit_type);
             let start = Instant::now();
 
@@ -400,9 +435,9 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
                 wits_hint,
                 finalization_hint,
             } = &self.setup_data.compression_data[i];
-    
+
             let setup_circuit = circuit.clone_without_witness();
-    
+
             let proof = std::panic::catch_unwind(|| {
                 let worker = BoojumWorker::new();
                 prove_compression_layer_circuit::<NoPow>(
@@ -416,7 +451,9 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
                     &vars_hint,
                     &wits_hint,
                     &finalization_hint,
-                )}).map_err(|_| CompressionError::GenerationCompressionProofError(circuit_type))?;
+                )
+            })
+            .map_err(|_| CompressionError::GenerationCompressionProofError(circuit_type))?;
 
             let is_valid = verify_compression_layer_proof::<NoPow>(&setup_circuit, &proof, vk);
             assert!(is_valid);
@@ -426,9 +463,14 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
                 .set_compression_proof(ZkSyncCompressionLayerStorage::from_inner(
                     circuit_type,
                     proof,
-                )).expect("Never returns error");
+                ))
+                .expect("Never returns error");
 
-            println!("Proof for compression #{} is generated, took {:?}", circuit_type, start.elapsed());
+            println!(
+                "Proof for compression #{} is generated, took {:?}",
+                circuit_type,
+                start.elapsed()
+            );
         }
 
         Ok(())
@@ -437,7 +479,10 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
     fn generate_compression_for_wrapper_proof(&mut self) -> WrapperResult<()> {
         let circuit_type = self.wrapper_config.get_compression_for_wrapper_type();
 
-        println!("Start generating proof for compression for wrapper #{}", circuit_type);
+        println!(
+            "Start generating proof for compression for wrapper #{}",
+            circuit_type
+        );
         let start = Instant::now();
 
         let proof = get_proof_for_previous_circuit(&mut self.setup_data.source, circuit_type)
@@ -466,12 +511,14 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
             vars_hint,
             wits_hint,
             finalization_hint,
-        } = &self.setup_data.wrapper_compression_data.as_ref().expect(
-            &format!(
+        } = &self
+            .setup_data
+            .wrapper_compression_data
+            .as_ref()
+            .expect(&format!(
                 "CompressionData should be present. Current circuit type: {}",
                 circuit_type
-            ),
-        );
+            ));
 
         let setup_circuit = circuit.clone_without_witness();
 
@@ -488,7 +535,9 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
                 vars_hint,
                 wits_hint,
                 finalization_hint,
-            )}).map_err(|_| CompressionError::GenerationCompressionForWrapperProofError(circuit_type))?;
+            )
+        })
+        .map_err(|_| CompressionError::GenerationCompressionForWrapperProofError(circuit_type))?;
 
         let is_valid = verify_compression_for_wrapper_proof::<NoPow>(&setup_circuit, &proof, &vk);
         assert!(is_valid);
@@ -498,9 +547,14 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
             .set_compression_for_wrapper_proof(ZkSyncCompressionLayerStorage::from_inner(
                 circuit_type,
                 proof,
-            )).expect("Never returns error");
+            ))
+            .expect("Never returns error");
 
-        println!("Proof for compression for wrapper #{} is generated, took {:?}", circuit_type, start.elapsed());
+        println!(
+            "Proof for compression for wrapper #{} is generated, took {:?}",
+            circuit_type,
+            start.elapsed()
+        );
         Ok(())
     }
 
@@ -514,22 +568,20 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
             .setup_data
             .source
             .get_compression_for_wrapper_proof(wrapper_type)
-            .expect(
-                &format!(
-                    "Compression for wrapper proof should be present. Wrapper type: {}",
-                    wrapper_type
-                ),
-            ).into_inner();
+            .expect(&format!(
+                "Compression for wrapper proof should be present. Wrapper type: {}",
+                wrapper_type
+            ))
+            .into_inner();
         let vk = self
             .setup_data
             .source
             .get_compression_for_wrapper_vk(wrapper_type)
-            .expect(
-                &format!(
-                    "Compression for wrapper vk should be present. Wrapper type: {}",
-                    wrapper_type
-                ),
-            ).into_inner();
+            .expect(&format!(
+                "Compression for wrapper vk should be present. Wrapper type: {}",
+                wrapper_type
+            ))
+            .into_inner();
 
         let mut assembly = DefaultAssembly::<SynthesisModeProve>::new();
 
@@ -564,17 +616,19 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
         self.manager.free_all_slots();
         let snark_proof = snark_proof_result?;
 
-        let snark_vk = self.setup_data.source.get_wrapper_vk(wrapper_type).expect(
-            &format!(
+        let snark_vk = self
+            .setup_data
+            .source
+            .get_wrapper_vk(wrapper_type)
+            .expect(&format!(
                 "Wrapper vk should be present. Wrapper type: {}",
                 wrapper_type
-            ),
-        );
+            ));
 
         let is_valid = verify::<_, _, RollingKeccakTranscript<Fr>>(
-            &snark_vk.into_inner(), 
-            &snark_proof, 
-            None
+            &snark_vk.into_inner(),
+            &snark_proof,
+            None,
         )?;
         assert!(is_valid);
 
@@ -584,7 +638,11 @@ impl<MC: ManagerConfigs> WrapperProver<MC> {
             .set_wrapper_proof(snark_proof)
             .expect("Never returns error");
 
-        println!("Proof for wrapper #{} is generated, took {:?}", wrapper_type, start.elapsed());
+        println!(
+            "Proof for wrapper #{} is generated, took {:?}",
+            wrapper_type,
+            start.elapsed()
+        );
         Ok(())
     }
 }
