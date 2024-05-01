@@ -33,7 +33,7 @@ use zkevm_test_harness::{
     },
     franklin_crypto::bellman::{
         kate_commitment::{Crs, CrsForMonomialForm},
-        pairing::bn256::{Bn256, Fr, G2Affine},
+        pairing::bn256::{Fr, G2Affine},
         pairing::compact_bn256::Bn256 as CompactBn256,
         plonk::{
             better_better_cs::cs::{
@@ -62,6 +62,7 @@ use zkevm_test_harness::{
 pub use circuit_definitions::circuit_definitions::aux_layer::ZkSyncSnarkWrapperCircuit;
 pub use zkevm_test_harness::franklin_crypto::bellman::plonk::Proof;
 pub use zkevm_test_harness::proof_wrapper_utils::{WrapperConfig, DEFAULT_WRAPPER_CONFIG};
+pub use zkevm_test_harness::franklin_crypto::bellman::bn256::Bn256;
 
 pub struct GPUWrapperConfigs;
 
