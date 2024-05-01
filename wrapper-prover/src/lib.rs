@@ -9,7 +9,7 @@ use error::*;
 
 use circuit_definitions::circuit_definitions::{
     aux_layer::{
-        wrapper::ZkSyncCompressionWrapper, ZkSyncCompressionForWrapperCircuit,
+        ZkSyncCompressionForWrapperCircuit,
         ZkSyncCompressionLayerCircuit, ZkSyncCompressionLayerStorage, ZkSyncSnarkWrapperCircuit,
     },
     recursion_layer::{
@@ -48,7 +48,7 @@ use zkevm_test_harness::{
     },
     proof_wrapper_utils::{
         get_proof_for_previous_circuit, get_trusted_setup, get_vk_for_previous_circuit,
-        WrapperConfig, L1_VERIFIER_DOMAIN_SIZE_LOG,
+        L1_VERIFIER_DOMAIN_SIZE_LOG,
     },
     prover_utils::{
         create_compression_for_wrapper_setup_data, prove_compression_for_wrapper_circuit,
@@ -56,6 +56,9 @@ use zkevm_test_harness::{
         verify_compression_layer_proof, prove_compression_layer_circuit,
     },
 };
+
+pub use zkevm_test_harness::proof_wrapper_utils::WrapperConfig;
+pub use circuit_definitions::circuit_definitions::aux_layer::wrapper::ZkSyncCompressionWrapper;
 
 pub struct GPUWrapperConfigs;
 
