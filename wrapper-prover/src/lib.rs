@@ -68,7 +68,7 @@ pub struct GPUWrapperConfigs;
 
 impl ManagerConfigs for GPUWrapperConfigs {
     const NUM_GPUS_LOG: usize = 0;
-    const FULL_SLOT_SIZE_LOG: usize = 26;
+    const FULL_SLOT_SIZE_LOG: usize = 24;
     const NUM_SLOTS: usize = 29;
     const NUM_HOST_SLOTS: usize = 2;
 }
