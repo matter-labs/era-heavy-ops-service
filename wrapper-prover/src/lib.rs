@@ -84,6 +84,9 @@ pub struct WrapperProver<MC: ManagerConfigs> {
     setup_is_ready: bool,
 }
 
+unsafe impl<MC: ManagerConfigs> Send for WrapperProver<MC> {}
+unsafe impl<MC: ManagerConfigs> Sync for WrapperProver<MC> {}
+
 impl<MC: ManagerConfigs> WrapperProver<MC> {
     pub fn new(
         crs: &Crs<Bn256, CrsForMonomialForm>,
