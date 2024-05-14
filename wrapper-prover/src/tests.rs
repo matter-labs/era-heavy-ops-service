@@ -112,7 +112,7 @@ fn allocate_default_prover() -> WrapperProver<GPUWrapperConfigs> {
 }
 
 fn get_scheduler_vk_from_local_source() -> ZkSyncRecursionLayerVerificationKey {
-    let source = LocalFileDataSource;
+    let source = LocalFileDataSource::default();
     source
         .get_recursion_layer_vk(ZkSyncRecursionLayerStorageType::SchedulerCircuit as u8)
         .expect("There should be scheduler vk in local storage")
@@ -125,7 +125,7 @@ fn get_bad_scheduler_vk() -> ZkSyncRecursionLayerVerificationKey {
 }
 
 fn get_scheduler_proof_from_local_source() -> ZkSyncRecursionLayerProof {
-    let source = LocalFileDataSource;
+    let source = LocalFileDataSource::default();
     source
         .get_scheduler_proof()
         .expect("There should be scheduler proof in local storage")
