@@ -125,14 +125,9 @@ fn get_bad_scheduler_vk() -> ZkSyncRecursionLayerVerificationKey {
 }
 
 fn get_scheduler_proof_from_local_source() -> ZkSyncRecursionLayerProof {
-<<<<<<< HEAD
     let source = LocalFileDataSource::default();
-    source.get_scheduler_proof()
-=======
-    let source = LocalFileDataSource;
     source
         .get_scheduler_proof()
->>>>>>> origin/snark_wrapper
         .expect("There should be scheduler proof in local storage")
 }
 
