@@ -60,9 +60,9 @@ use zkevm_test_harness::{
 };
 
 pub use circuit_definitions::circuit_definitions::aux_layer::ZkSyncSnarkWrapperCircuit;
+pub use zkevm_test_harness::franklin_crypto::bellman::bn256::Bn256;
 pub use zkevm_test_harness::franklin_crypto::bellman::plonk::Proof;
 pub use zkevm_test_harness::proof_wrapper_utils::{WrapperConfig, DEFAULT_WRAPPER_CONFIG};
-pub use zkevm_test_harness::franklin_crypto::bellman::bn256::Bn256;
 
 pub struct GPUWrapperConfigs;
 
