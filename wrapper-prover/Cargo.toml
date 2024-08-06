@@ -1,6 +1,6 @@
 [package]
 name = "zksync-wrapper-prover"
-version = "0.140.0-gpu-wrapper.1"
+version = "0.140.1-gpu-wrapper.1"
 edition = "2021"
 authors = ["The Matter Labs Team <hello@matterlabs.dev>"]
 homepage = "https://zksync.io/"
@@ -13,8 +13,8 @@ description = "ZKsync GPU wrapper prover"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gpu-prover = { package = "zksync-gpu-prover", version = "=0.140.0-gpu-wrapper.1", path = "../gpu-prover"}
+gpu-prover = { package = "zksync-gpu-prover", version = "=0.140.1-gpu-wrapper.1", path = "../gpu-prover" }
 # zkevm_test_harness = {path = "../../era-zkevm_test_harness"}
 # circuit_definitions = {path = "../../era-zkevm_test_harness/circuit_definitions"}
-zkevm_test_harness = "=0.140.0-gpu-wrapper.1"
-circuit_definitions = "=0.140.0-gpu-wrapper.1"
+zkevm_test_harness = "=0.140.1-gpu-wrapper.1"
+circuit_definitions = "=0.140.1-gpu-wrapper.1"
