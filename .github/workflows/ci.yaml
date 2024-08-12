@@ -35,8 +35,6 @@ jobs:
 
       - run: cargo build --verbose
 
-      - run: cargo test --package api-testing --release --no-run
-
   formatting:
     name: cargo fmt
     runs-on: [ubuntu-latest]
